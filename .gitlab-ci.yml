@@ -1,0 +1,10 @@
+include:
+  - project: 'dti/agd/templates/ci-templates-javascript'
+    ref: master
+    file: 'express.yml'
+
+deploy:qa:
+  environment: qas
+
+deploy:prd:
+  environment: prd
