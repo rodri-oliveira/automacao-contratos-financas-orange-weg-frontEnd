@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "dev:all": "powershell -File ./start-dev.ps1"
   },
   "dependencies": {
     "@emotion/cache": "^11.11.0",

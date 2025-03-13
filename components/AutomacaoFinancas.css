@@ -1,0 +1,6 @@
+/* Estilos específicos que não são facilmente implementados com MUI */
+.selected-row {
+  background-color: rgba(0, 87, 157, 0.1);
+}
+
+/* Adicione outros estilos específicos conforme necessário */ 
