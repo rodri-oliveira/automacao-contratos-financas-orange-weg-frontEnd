@@ -50,6 +50,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             clientId: process.env.AUTH_KEYCLOAK_ID as string,
             clientSecret: process.env.AUTH_KEYCLOAK_SECRET as string,
             issuer: process.env.AUTH_KEYCLOAK_ISSUER as string,
+            authorization: {
+                params: {
+                    scope: "openid email profile"
+                }
+            }
         })
     ],
     pages: {
@@ -76,10 +81,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     refresh_token: account.refresh_token,
                     user: userProfile,
                 }
-            } else if (token.expires_at && Date.now() < token.expires_at * 1000) {
-                return token;
+            } else if (token.expires_at && Date.now() < (token.expires_at as number) * 1000) {
+                return token
             } else {
-                if (!token.refresh_token) throw new Error("Missing refresh token");
+                if (!token.refresh_token) throw new Error("Missing refresh token")
 
                 try {
                     const response = await fetch(refreshUrl, {
@@ -93,9 +98,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         method: "POST",
                     });
 
-                    const responseTokens = await response.json();
+                    const responseTokens = await response.json()
 
-                    if (!response.ok) throw responseTokens;
+                    if (!response.ok) throw responseTokens
 
                     return {
                         ...token,
@@ -110,15 +115,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         },
         async session({ session, token }) {
             if (token.user) {
-                session.user = token.user as User & AdapterUser;
+                session.user = token.user as User & AdapterUser
             }
             
-            session.accessToken = token.access_token;
+            session.accessToken = token.access_token as string;
             session.error = token.error;
 
-            return session;
+            return session
         },
     },
-    // Configurações importantes para o redirecionamento correto
+    debug: process.env.NODE_ENV === "development",
     trustHost: true,
 })

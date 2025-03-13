@@ -17,14 +17,10 @@ export default function LogoutButton() {
         <IconButton 
             onClick={handleLogout}
             disabled={isLoading}
-            sx={{ 
-                color: "#fff",
-                padding: '4px'
-            }}
-            size="small"
+            sx={{ color: "#fff" }}
             aria-label="Sair"
         >
-            <ExitToAppIcon fontSize="small" />
+            <ExitToAppIcon />
         </IconButton>
     );
 } 
