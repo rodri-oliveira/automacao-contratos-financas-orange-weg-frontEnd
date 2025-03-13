@@ -1,12 +1,62 @@
 import NextAuth, { User } from "next-auth"
 import { AdapterUser } from "next-auth/adapters"
+import { JWT } from "next-auth/jwt"
 
 import Keycloak from "next-auth/providers/keycloak"
 
+// Estendendo os tipos para incluir os campos personalizados
+declare module "next-auth" {
+    interface Session {
+        error?: "RefreshAccessTokenError"
+        user?: User & AdapterUser
+        accessToken?: string
+    }
+    
+    interface JWT {
+        access_token?: string
+        expires_at?: number
+        refresh_token?: string
+        user?: User
+        error?: "RefreshAccessTokenError"
+    }
+}
+
+// Certifique-se de que as variáveis de ambiente estão definidas corretamente
+const keycloakIssuer = process.env.AUTH_KEYCLOAK_ISSUER;
+const keycloakClientId = process.env.AUTH_KEYCLOAK_ID;
+const keycloakClientSecret = process.env.AUTH_KEYCLOAK_SECRET;
+const nextAuthUrl = process.env.NEXTAUTH_URL;
+
+// Verificações de segurança
+if (!keycloakIssuer) {
+    console.error("AUTH_KEYCLOAK_ISSUER não está definido!");
+}
+
+if (!keycloakClientId) {
+    console.error("AUTH_KEYCLOAK_ID não está definido!");
+}
+
+if (!keycloakClientSecret) {
+    console.error("AUTH_KEYCLOAK_SECRET não está definido!");
+}
+
+if (!nextAuthUrl) {
+    console.error("NEXTAUTH_URL não está definido!");
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
     providers: [
-        Keycloak
+        Keycloak({
+            clientId: process.env.AUTH_KEYCLOAK_ID as string,
+            clientSecret: process.env.AUTH_KEYCLOAK_SECRET as string,
+            issuer: process.env.AUTH_KEYCLOAK_ISSUER as string,
+        })
     ],
+    pages: {
+        signIn: "/login",
+        signOut: "/login",
+        error: "/login",
+    },
     callbacks: {
         async jwt({ token, account }) {
             const clientId = process.env.AUTH_KEYCLOAK_ID as string;
@@ -26,10 +76,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                     refresh_token: account.refresh_token,
                     user: userProfile,
                 }
-            } else if (Date.now() < (token.expires_at as number) * 1000) {
-                return token
+            } else if (token.expires_at && Date.now() < token.expires_at * 1000) {
+                return token;
             } else {
-                if (!token.refresh_token) throw new Error("Missing refresh token")
+                if (!token.refresh_token) throw new Error("Missing refresh token");
 
                 try {
                     const response = await fetch(refreshUrl, {
@@ -43,9 +93,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         method: "POST",
                     });
 
-                    const responseTokens = await response.json()
+                    const responseTokens = await response.json();
 
-                    if (!response.ok) throw responseTokens
+                    if (!response.ok) throw responseTokens;
 
                     return {
                         ...token,
@@ -60,16 +110,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         },
         async session({ session, token }) {
             if (token.user) {
-                session.user = token.user as User & AdapterUser
+                session.user = token.user as User & AdapterUser;
             }
+            
+            session.accessToken = token.access_token;
+            session.error = token.error;
 
-            return session
+            return session;
         },
     },
+    // Configurações importantes para o redirecionamento correto
+    trustHost: true,
 })
-
-declare module "next-auth" {
-    interface Session {
-        error?: "RefreshAccessTokenError"
-    }
-}

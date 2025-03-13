@@ -1,48 +1,57 @@
-import { signIn } from "@/app/auth"
-import { Box, Button, Grid, Paper, Typography } from "@mui/material"
+"use client";
+
+import { Box, Button, Container, Paper, Typography, CircularProgress } from "@mui/material";
+import { signIn } from "next-auth/react";
+import { useState } from "react";
 
 export default function LoginPage() {
-    return (
-        <Grid
-            container
-            component="main"
-            sx={{
-                height: "100vh"
-            }}
-        >
-            <Grid
-                item
-                square
-                xs={12}
-                sm={6}
-                md={4}
-                component={Paper}
-                elevation={6}
-            >
-                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", p: 5 }}>
-                    <Typography component="h1" variant="h4" mb={8}>
-                        {"automacao-financas-frontend"}
-                    </Typography>
-                    <form
-                        action={async () => {
-                            "use server"
-                            await signIn("keycloak", { redirectTo: "/" })
-                        }}
-                    >
-                        <Button variant="contained" type="submit">Sign In</Button>
-                    </form>
-                </Box>
-            </Grid>
+    const [isLoading, setIsLoading] = useState(false);
 
-            <Grid
-                item
-                xs={false}
-                sm={6}
-                md={8}
-                sx={{
-                    backgroundColor: "#00579d",
-                }}
-            />
-        </Grid>
-    )
+    const handleLogin = async () => {
+        setIsLoading(true);
+        try {
+            await signIn("keycloak", { 
+                callbackUrl: "/",
+                redirect: true
+            });
+        } catch (error) {
+            console.error("Erro ao fazer login:", error);
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <Container maxWidth="sm" sx={{ mt: 8 }}>
+            <Paper elevation={3} sx={{ p: 4, textAlign: "center" }}>
+                <Typography variant="h5" component="h1" gutterBottom sx={{ color: '#00579d' }}>
+                    Automação Financeira
+                </Typography>
+                
+                <Typography variant="body1" sx={{ mb: 4 }}>
+                    Faça login com sua conta WEG para acessar o sistema
+                </Typography>
+                
+                <Button
+                    variant="contained"
+                    onClick={handleLogin}
+                    disabled={isLoading}
+                    sx={{ 
+                        backgroundColor: '#00579d',
+                        '&:hover': {
+                            backgroundColor: '#004a84'
+                        }
+                    }}
+                >
+                    {isLoading ? (
+                        <>
+                            <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+                            Autenticando...
+                        </>
+                    ) : (
+                        "Entrar com WEG ID"
+                    )}
+                </Button>
+            </Paper>
+        </Container>
+    );
 }
