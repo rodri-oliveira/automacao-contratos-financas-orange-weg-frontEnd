@@ -119,7 +119,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             }
             
             session.accessToken = token.access_token as string;
-            session.error = token.error;
+            session.error = token.error as "RefreshAccessTokenError" | undefined;
 
             return session
         },
