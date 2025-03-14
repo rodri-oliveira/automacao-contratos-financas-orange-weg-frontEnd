@@ -446,8 +446,8 @@ export default function AutomacaoFinancas() {
                     disabled={loading}
                     sx={{ bgcolor: '#00579d', '&:hover': { bgcolor: '#004a84' } }}
                   >
-                Buscar Arquivos
-              </Button>
+                    Buscar Arquivos
+                  </Button>
                   <Button 
                     variant="contained" 
                     onClick={handleProcessFiles} 
@@ -459,9 +459,44 @@ export default function AutomacaoFinancas() {
                 </Box>
                 
                 {loading && (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 2.5 }}>
-                    <CircularProgress />
+                  <Box sx={{ 
+                    textAlign: 'center', 
+                    p: 3, 
+                    bgcolor: '#f5f7fa', 
+                    border: '1px solid #e0e0e0',
+                    borderRadius: 1,
+                    my: 2
+                  }}>
+                    <Typography 
+                      variant="body1" 
+                      sx={{ 
+                        color: '#00579d', 
+                        fontWeight: 500 
+                      }}
+                    >
+                      {activeTab === 'R189' 
+                        ? 'Carregando arquivos R189...' 
+                        : `Carregando arquivos ${activeTab}...`
+                      }
+                    </Typography>
                   </Box>
+                )}
+                
+                {loading && (
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      display: 'block',
+                      mt: 1,
+                      textAlign: 'center',
+                      color: '#666'
+                    }}
+                  >
+                    {activeTab === 'R189' 
+                      ? 'Aguarde enquanto os arquivos R189 são carregados...' 
+                      : `Aguarde enquanto os arquivos ${activeTab} são carregados...`
+                    }
+                  </Typography>
                 )}
                 
                 {!loading && <FileList key={fileListKey} />}
