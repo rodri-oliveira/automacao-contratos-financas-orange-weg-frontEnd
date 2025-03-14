@@ -6,11 +6,8 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
 // URL da API
-//const API_URL = '/api/proxy';
-// usar o API_URL da variavel de ambiente, apontando diretamente pro backend
-//ex https://automacaofinancas-qas.weg.net/backend ou http://localhost:8000/backend...
+const API_URL = '/api/proxy';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/backend" ;
 
 
 export default function AutomacaoFinancas() {
