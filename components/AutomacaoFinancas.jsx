@@ -6,9 +6,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
 // URL da API
-const API_URL = '/backend';
-
-
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 export default function AutomacaoFinancas() {
   // Estados básicos
@@ -87,7 +85,7 @@ export default function AutomacaoFinancas() {
         setLoading(true);
         setError(null);
         
-        const response = await fetch(`${API_URL}/arquivos/${activeTab}`, {
+        const response = await fetch(`${API_URL}/backend/arquivos/${activeTab}`, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
@@ -116,129 +114,31 @@ export default function AutomacaoFinancas() {
 
   // Função para processar arquivos
   const handleProcessFiles = async () => {
-    if (selectedFiles.length === 0) {
-        setError("Por favor, selecione pelo menos um arquivo para processar.");
-        return;
-    }
+        if (selectedFiles.length === 0) {
+            setError("Por favor, selecione pelo menos um arquivo para processar.");
+            return;
+        }
 
     try {
         setLoading(true);
       
-        // Determinar endpoint e próxima aba
-        let endpoint, nextTab;
+      // Determinar endpoint e próxima aba
+      let endpoint, nextTab;
         switch(activeTab) {
-            case 'QPE': 
-                endpoint = `${API_URL}/qpe/process`;
-                nextTab = 'SPB'; 
-                break;
-            case 'SPB': 
-                endpoint = `${API_URL}/spb/process`;
-                nextTab = 'NFSERV'; 
-                break;
-            case 'NFSERV': 
-                endpoint = `${API_URL}/nfserv/process`;
-                nextTab = 'MUN_CODE'; 
-                break;
-            case 'MUN_CODE': 
-                endpoint = `${API_URL}/mun_code/process`;
-                nextTab = 'R189'; 
-                break;
-            default: 
-                endpoint = `${API_URL}/api/processar/r189`;
-                nextTab = 'QPE';
-        }
+        case 'QPE': endpoint = `${API_URL}/qpe/process`; nextTab = 'SPB'; break;
+        case 'SPB': endpoint = `${API_URL}/spb/process`; nextTab = 'NFSERV'; break;
+        case 'NFSERV': endpoint = `${API_URL}/nfserv/process`; nextTab = 'MUN_CODE'; break;
+        case 'MUN_CODE': endpoint = `${API_URL}/mun_code/process`; nextTab = 'R189'; break;
+        default: endpoint = `${API_URL}/backend/processar/r189`; nextTab = 'QPE';
+      }
 
-        console.log(`Processando arquivos em: ${endpoint}`);
-        
-        // Tratamento especial para QPE, SPB, NFSERV e MUN_CODE
-        if (activeTab === 'QPE' || activeTab === 'SPB' || activeTab === 'NFSERV' || activeTab === 'MUN_CODE') {
-            try {
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(selectedFiles)
-                });
-                
-                console.log(`Status da resposta ${activeTab}: ${response.status}`);
-                
-                // Mesmo que dê erro, vamos considerar como sucesso
-                setStatus(prevStatus => ({
-                    ...prevStatus,
-                    [activeTab]: 'Processamento concluído'
-                }));
-                
-                setFiles([]);
-                setSelectedFiles([]);
-                setFileListKey(prevKey => prevKey + 1);
-                
-                setEnabledTabs(prevState => ({
-                    ...prevState,
-                    [nextTab]: true
-                }));
-                setActiveTab(nextTab);
-                
-                // Se for a última aba, habilitar validações
-                if (activeTab === 'MUN_CODE') {
-                    setValidationEnabled(true);
-                }
-                
-                alert(`Arquivos ${activeTab} processados com sucesso!`);
-                return;
-            } catch (error) {
-                console.error(`Erro ${activeTab}:`, error);
-                // Mesmo com erro, consideramos como sucesso
-                setStatus(prevStatus => ({
-                    ...prevStatus,
-                    [activeTab]: 'Processamento concluído com avisos'
-                }));
-                
-                setFiles([]);
-                setSelectedFiles([]);
-                setFileListKey(prevKey => prevKey + 1);
-                
-                setEnabledTabs(prevState => ({
-                    ...prevState,
-                    [nextTab]: true
-                }));
-                setActiveTab(nextTab);
-                
-                // Se for a última aba, habilitar validações
-                if (activeTab === 'MUN_CODE') {
-                    setValidationEnabled(true);
-                }
-                
-                alert(`Arquivos ${activeTab} processados com sucesso (com avisos)!`);
-                return;
-            }
-        }
-        
-        // Para outras abas, processamento normal
         const response = await fetch(endpoint, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(selectedFiles)
         });
 
-        console.log(`Status da resposta: ${response.status}`);
-        
-        // Verificar se a resposta é válida
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Resposta de erro:', errorText);
-            throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
-        }
-
-        // Tentar obter a resposta como JSON
-        let data;
-        try {
-            data = await response.json();
-        } catch (jsonError) {
-            console.error('Erro ao processar JSON:', jsonError);
-            // Se não for possível processar como JSON, considerar como sucesso
-            data = { success: true, message: 'Processamento concluído' };
-        }
-        
-        console.log(`Dados recebidos:`, data);
+        const data = await response.json();
         
         if (data.success) {
             setStatus(prevStatus => ({
@@ -252,7 +152,7 @@ export default function AutomacaoFinancas() {
             
             if (activeTab === 'MUN_CODE') {
                 setValidationEnabled(true);
-                setActiveTab('R189');
+          setActiveTab('R189');
             } else {
                 setEnabledTabs(prevState => ({
                     ...prevState,
@@ -261,12 +161,11 @@ export default function AutomacaoFinancas() {
                 setActiveTab(nextTab);
             }
             
-            alert(data.message || 'Arquivos processados com sucesso!');
+            alert('Arquivos processados com sucesso!');
         } else {
             throw new Error(data.error || 'Erro no processamento');
         }
     } catch (error) {
-        console.error('Erro completo:', error);
         setStatus(prevStatus => ({
             ...prevStatus,
             [activeTab]: 'Erro no processamento'
@@ -321,7 +220,7 @@ export default function AutomacaoFinancas() {
       setLoading(true);
       setError(null);
       
-      const endpoint = `${API_URL}/validations/${type}`;
+      const endpoint = `${API_URL}/backend/validations/${type}`;
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
