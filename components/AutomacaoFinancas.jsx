@@ -19,6 +19,9 @@ export default function AutomacaoFinancas() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [fileListKey, setFileListKey] = useState(0);
   
+  // Novo estado para controlar o tipo de processamento atual
+  const [processingType, setProcessingType] = useState("");
+  
   // Estado para controlar quais abas estão habilitadas
   const [enabledTabs, setEnabledTabs] = useState({
     R189: true, QPE: false, SPB: false, NFSERV: false, MUN_CODE: false
@@ -220,6 +223,9 @@ export default function AutomacaoFinancas() {
       setLoading(true);
       setError(null);
       
+      // Define o tipo de processamento para mostrar a mensagem correta
+      setProcessingType(type === 'consolidate_reports' ? 'consolidation' : 'validation');
+      
       const endpoint = `${API_URL}/backend/validations/${type}`;
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -238,6 +244,7 @@ export default function AutomacaoFinancas() {
       alert(`Erro na validação: ${error.message}`);
     } finally {
       setLoading(false);
+      setProcessingType(""); // Limpa o tipo de processamento ao finalizar
     }
   };
 
@@ -474,9 +481,13 @@ export default function AutomacaoFinancas() {
                         fontWeight: 500 
                       }}
                     >
-                      {activeTab === 'R189' 
-                        ? 'Carregando arquivos R189...' 
-                        : `Carregando arquivos ${activeTab}...`
+                      {processingType === 'consolidation' 
+                        ? 'Consolidando todos os relatórios em um único arquivo...' 
+                        : processingType === 'validation'
+                        ? 'Executando validação...'
+                        : activeTab === 'R189' 
+                          ? 'Carregando arquivos R189...' 
+                          : `Carregando arquivos ${activeTab}...`
                       }
                     </Typography>
                   </Box>
@@ -492,9 +503,13 @@ export default function AutomacaoFinancas() {
                       color: '#666'
                     }}
                   >
-                    {activeTab === 'R189' 
-                      ? 'Aguarde enquanto os arquivos R189 são carregados...' 
-                      : `Aguarde enquanto os arquivos ${activeTab} são carregados...`
+                    {processingType === 'consolidation' 
+                      ? 'Aguarde enquanto os relatórios são consolidados...' 
+                      : processingType === 'validation'
+                      ? 'Aguarde enquanto a validação é processada...'
+                      : activeTab === 'R189' 
+                        ? 'Aguarde enquanto os arquivos R189 são carregados...' 
+                        : `Aguarde enquanto os arquivos ${activeTab} são carregados...`
                     }
                   </Typography>
                 )}
