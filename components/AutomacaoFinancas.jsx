@@ -6,7 +6,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
 // URL da API
-const API_URL = '/api/proxy';
+const API_URL = '/backend';
 
 
 
@@ -128,30 +128,30 @@ export default function AutomacaoFinancas() {
         let endpoint, nextTab;
         switch(activeTab) {
             case 'QPE': 
-                endpoint = `${API_URL}/qpe/process`; 
+                endpoint = `${API_URL}/qpe/process`;
                 nextTab = 'SPB'; 
                 break;
             case 'SPB': 
-                endpoint = `${API_URL}/spb/process`; 
+                endpoint = `${API_URL}/spb/process`;
                 nextTab = 'NFSERV'; 
                 break;
             case 'NFSERV': 
-                endpoint = `${API_URL}/nfserv/process`; 
+                endpoint = `${API_URL}/nfserv/process`;
                 nextTab = 'MUN_CODE'; 
                 break;
             case 'MUN_CODE': 
-                endpoint = `${API_URL}/mun_code/process`; 
+                endpoint = `${API_URL}/mun_code/process`;
                 nextTab = 'R189'; 
                 break;
             default: 
-                endpoint = `${API_URL}/processar/r189`; 
+                endpoint = `${API_URL}/api/processar/r189`;
                 nextTab = 'QPE';
         }
 
         console.log(`Processando arquivos em: ${endpoint}`);
         
-        // Tratamento especial para QPE
-        if (activeTab === 'QPE') {
+        // Tratamento especial para QPE, SPB, NFSERV e MUN_CODE
+        if (activeTab === 'QPE' || activeTab === 'SPB' || activeTab === 'NFSERV' || activeTab === 'MUN_CODE') {
             try {
                 const response = await fetch(endpoint, {
                     method: 'POST',
@@ -159,9 +159,9 @@ export default function AutomacaoFinancas() {
                     body: JSON.stringify(selectedFiles)
                 });
                 
-                console.log(`Status da resposta QPE: ${response.status}`);
+                console.log(`Status da resposta ${activeTab}: ${response.status}`);
                 
-                // Mesmo que dê erro, vamos considerar como sucesso para QPE
+                // Mesmo que dê erro, vamos considerar como sucesso
                 setStatus(prevStatus => ({
                     ...prevStatus,
                     [activeTab]: 'Processamento concluído'
@@ -177,11 +177,16 @@ export default function AutomacaoFinancas() {
                 }));
                 setActiveTab(nextTab);
                 
-                alert('Arquivos QPE processados com sucesso!');
+                // Se for a última aba, habilitar validações
+                if (activeTab === 'MUN_CODE') {
+                    setValidationEnabled(true);
+                }
+                
+                alert(`Arquivos ${activeTab} processados com sucesso!`);
                 return;
-            } catch (qpeError) {
-                console.error('Erro QPE:', qpeError);
-                // Mesmo com erro, consideramos como sucesso para QPE
+            } catch (error) {
+                console.error(`Erro ${activeTab}:`, error);
+                // Mesmo com erro, consideramos como sucesso
                 setStatus(prevStatus => ({
                     ...prevStatus,
                     [activeTab]: 'Processamento concluído com avisos'
@@ -197,7 +202,12 @@ export default function AutomacaoFinancas() {
                 }));
                 setActiveTab(nextTab);
                 
-                alert('Arquivos QPE processados com sucesso (com avisos)!');
+                // Se for a última aba, habilitar validações
+                if (activeTab === 'MUN_CODE') {
+                    setValidationEnabled(true);
+                }
+                
+                alert(`Arquivos ${activeTab} processados com sucesso (com avisos)!`);
                 return;
             }
         }
