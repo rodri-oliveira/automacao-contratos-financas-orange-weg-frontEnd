@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Use a variável de ambiente para a URL da API
+const API_URL = process.env.AUTOMACAOFINANCAS_API || 'http://localhost:8000';
+
 export async function GET(request: NextRequest, { params }: { params: { path: string[] } }) {
   const path = params.path.join('/');
   let targetUrl;
   
   // Mapear rotas especiais
   if (path.startsWith('qpe/')) {
-    targetUrl = `http://localhost:8000/qpe/${path.substring(4)}${request.nextUrl.search}`;
+    targetUrl = `${API_URL}/qpe/${path.substring(4)}${request.nextUrl.search}`;
   } else if (path.startsWith('spb/')) {
-    targetUrl = `http://localhost:8000/spb/${path.substring(4)}${request.nextUrl.search}`;
+    targetUrl = `${API_URL}/spb/${path.substring(4)}${request.nextUrl.search}`;
   } else if (path.startsWith('nfserv/')) {
-    targetUrl = `http://localhost:8000/nfserv/${path.substring(7)}${request.nextUrl.search}`;
+    targetUrl = `${API_URL}/nfserv/${path.substring(7)}${request.nextUrl.search}`;
   } else if (path.startsWith('mun_code/')) {
-    targetUrl = `http://localhost:8000/mun_code/${path.substring(9)}${request.nextUrl.search}`;
+    targetUrl = `${API_URL}/mun_code/${path.substring(9)}${request.nextUrl.search}`;
   } else {
-    targetUrl = `http://localhost:8000/backend/${path}${request.nextUrl.search}`;
+    targetUrl = `${API_URL}/backend/${path}${request.nextUrl.search}`;
   }
   
   console.log(`Proxy GET: ${request.nextUrl.pathname} -> ${targetUrl}`);
@@ -41,15 +44,15 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
   
   // Mapear rotas especiais
   if (path.startsWith('qpe/')) {
-    targetUrl = `http://localhost:8000/qpe/${path.substring(4)}`;
+    targetUrl = `${API_URL}/qpe/${path.substring(4)}`;
   } else if (path.startsWith('spb/')) {
-    targetUrl = `http://localhost:8000/spb/${path.substring(4)}`;
+    targetUrl = `${API_URL}/spb/${path.substring(4)}`;
   } else if (path.startsWith('nfserv/')) {
-    targetUrl = `http://localhost:8000/nfserv/${path.substring(7)}`;
+    targetUrl = `${API_URL}/nfserv/${path.substring(7)}`;
   } else if (path.startsWith('mun_code/')) {
-    targetUrl = `http://localhost:8000/mun_code/${path.substring(9)}`;
+    targetUrl = `${API_URL}/mun_code/${path.substring(9)}`;
   } else {
-    targetUrl = `http://localhost:8000/backend/${path}`;
+    targetUrl = `${API_URL}/backend/${path}`;
   }
   
   console.log(`Proxy POST: ${request.nextUrl.pathname} -> ${targetUrl}`);
