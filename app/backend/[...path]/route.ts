@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Use a variável de ambiente para a URL da API
-const API_URL = process.env.AUTOMACAOFINANCAS_API || 'http://localhost:8000';
+// Detecção de ambiente para determinar a URL da API
+const isDevelopment = process.env.NODE_ENV === 'development';
+const API_URL = isDevelopment 
+  ? 'http://localhost:8000' 
+  : 'https://automacaofinancas-qas.weg.net';
+
+// Log para diagnóstico
+console.log(`Ambiente: ${process.env.NODE_ENV}, URL da API: ${API_URL}`);
 
 export async function GET(request: NextRequest, { params }: { params: { path: string[] } }) {
   const path = params.path.join('/');

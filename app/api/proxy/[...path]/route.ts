@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Use a variável de ambiente para a URL da API
-const API_URL = process.env.AUTOMACAOFINANCAS_API || 'http://localhost:8000';
+// No topo do arquivo
+const isDevelopment = process.env.NODE_ENV === 'development';
+const API_URL = isDevelopment 
+  ? 'http://localhost:8000' 
+  : 'https://automacaofinancas-qas.weg.net';
+
+console.log('Ambiente:', process.env.NODE_ENV, 'URL da API:', API_URL);
 
 // Função para fazer fetch com timeout
 async function fetchWithTimeout(url: string, options: RequestInit, timeout = 120000) {
