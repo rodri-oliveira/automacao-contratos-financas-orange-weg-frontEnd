@@ -6,15 +6,15 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
   
   // Mapear rotas especiais
   if (path.startsWith('qpe/')) {
-    targetUrl = `AUTOMACAOFINANCAS_API/qpe/${path.substring(4)}${request.nextUrl.search}`;
+    targetUrl = `http://localhost:8000/qpe/${path.substring(4)}${request.nextUrl.search}`;
   } else if (path.startsWith('spb/')) {
-    targetUrl = `AUTOMACAOFINANCAS_API/spb/${path.substring(4)}${request.nextUrl.search}`;
+    targetUrl = `http://localhost:8000/spb/${path.substring(4)}${request.nextUrl.search}`;
   } else if (path.startsWith('nfserv/')) {
-    targetUrl = `AUTOMACAOFINANCAS_API/nfserv/${path.substring(7)}${request.nextUrl.search}`;
+    targetUrl = `http://localhost:8000/nfserv/${path.substring(7)}${request.nextUrl.search}`;
   } else if (path.startsWith('mun_code/')) {
-    targetUrl = `AUTOMACAOFINANCAS_API/mun_code/${path.substring(9)}${request.nextUrl.search}`;
+    targetUrl = `http://localhost:8000/mun_code/${path.substring(9)}${request.nextUrl.search}`;
   } else {
-    targetUrl = `AUTOMACAOFINANCAS_API/backend/${path}${request.nextUrl.search}`;
+    targetUrl = `http://localhost:8000/backend/${path}${request.nextUrl.search}`;
   }
   
   console.log(`Proxy GET: ${request.nextUrl.pathname} -> ${targetUrl}`);
@@ -41,15 +41,15 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
   
   // Mapear rotas especiais
   if (path.startsWith('qpe/')) {
-    targetUrl = `AUTOMACAOFINANCAS_API/qpe/${path.substring(4)}`;
+    targetUrl = `http://localhost:8000/qpe/${path.substring(4)}`;
   } else if (path.startsWith('spb/')) {
-    targetUrl = `AUTOMACAOFINANCAS_API/spb/${path.substring(4)}`;
+    targetUrl = `http://localhost:8000/spb/${path.substring(4)}`;
   } else if (path.startsWith('nfserv/')) {
-    targetUrl = `AUTOMACAOFINANCAS_API/nfserv/${path.substring(7)}`;
+    targetUrl = `http://localhost:8000/nfserv/${path.substring(7)}`;
   } else if (path.startsWith('mun_code/')) {
-    targetUrl = `AUTOMACAOFINANCAS_API/mun_code/${path.substring(9)}`;
+    targetUrl = `http://localhost:8000/mun_code/${path.substring(9)}`;
   } else {
-    targetUrl = `AUTOMACAOFINANCAS_API/backend/${path}`;
+    targetUrl = `http://localhost:8000/backend/${path}`;
   }
   
   console.log(`Proxy POST: ${request.nextUrl.pathname} -> ${targetUrl}`);
