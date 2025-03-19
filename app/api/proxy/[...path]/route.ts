@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Detecção de ambiente para determinar a URL da API
 const isDevelopment = process.env.NODE_ENV === 'development';
-const API_URL = process.env.NEXT_PUBLIC_API_URL ;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "localhost:8000";
 
 // Função para fazer fetch com timeout
 async function fetchWithTimeout(url: string, options: RequestInit, timeout = 120000) {

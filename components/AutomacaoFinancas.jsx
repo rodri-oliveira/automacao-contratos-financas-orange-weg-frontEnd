@@ -255,7 +255,7 @@ export default function AutomacaoFinancas() {
       return (
         <Paper sx={{ p: 3, textAlign: 'center', bgcolor: '#f5f7fa' }}>
           <Typography>
-            Nenhum arquivo carregado. Clique em "Buscar Arquivos" para listar os arquivos disponíveis para esta etapa.
+            Nenhum arquivo carregado. Clique em Buscar Arquivos para listar os arquivos disponíveis para esta etapa.
           </Typography>
           <Typography sx={{ mt: 1 }}>
             Aba atual: <strong>{activeTab}</strong>
