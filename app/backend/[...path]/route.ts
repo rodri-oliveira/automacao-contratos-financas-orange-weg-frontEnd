@@ -1,26 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Obtém a URL base do backend a partir das variáveis de ambiente
-const getBaseUrl = () => {
-  return process.env.AUTO_CONTRACT_FINAN || 'http://localhost:8000'; // Fallback para localhost em desenvolvimento
-};
-
 export async function GET(request: NextRequest, { params }: { params: { path: string[] } }) {
   const path = params.path.join('/');
-  const baseUrl = getBaseUrl(); // Usa a URL base do backend
   let targetUrl;
   
   // Mapear rotas especiais
   if (path.startsWith('qpe/')) {
-    targetUrl = `${baseUrl}/qpe/${path.substring(4)}${request.nextUrl.search}`;
+    targetUrl = `http://localhost:8000/qpe/${path.substring(4)}${request.nextUrl.search}`;
   } else if (path.startsWith('spb/')) {
-    targetUrl = `${baseUrl}/spb/${path.substring(4)}${request.nextUrl.search}`;
+    targetUrl = `http://localhost:8000/spb/${path.substring(4)}${request.nextUrl.search}`;
   } else if (path.startsWith('nfserv/')) {
-    targetUrl = `${baseUrl}/nfserv/${path.substring(7)}${request.nextUrl.search}`;
+    targetUrl = `http://localhost:8000/nfserv/${path.substring(7)}${request.nextUrl.search}`;
   } else if (path.startsWith('mun_code/')) {
-    targetUrl = `${baseUrl}/mun_code/${path.substring(9)}${request.nextUrl.search}`;
+    targetUrl = `http://localhost:8000/mun_code/${path.substring(9)}${request.nextUrl.search}`;
   } else {
-    targetUrl = `${baseUrl}/backend/${path}${request.nextUrl.search}`;
+    targetUrl = `http://localhost:8000/backend/${path}${request.nextUrl.search}`;
   }
   
   console.log(`Proxy GET: ${request.nextUrl.pathname} -> ${targetUrl}`);
@@ -43,20 +37,19 @@ export async function GET(request: NextRequest, { params }: { params: { path: st
 
 export async function POST(request: NextRequest, { params }: { params: { path: string[] } }) {
   const path = params.path.join('/');
-  const baseUrl = getBaseUrl(); // Usa a URL base do backend
   let targetUrl;
   
   // Mapear rotas especiais
   if (path.startsWith('qpe/')) {
-    targetUrl = `${baseUrl}/qpe/${path.substring(4)}`;
+    targetUrl = `http://localhost:8000/qpe/${path.substring(4)}`;
   } else if (path.startsWith('spb/')) {
-    targetUrl = `${baseUrl}/spb/${path.substring(4)}`;
+    targetUrl = `http://localhost:8000/spb/${path.substring(4)}`;
   } else if (path.startsWith('nfserv/')) {
-    targetUrl = `${baseUrl}/nfserv/${path.substring(7)}`;
+    targetUrl = `http://localhost:8000/nfserv/${path.substring(7)}`;
   } else if (path.startsWith('mun_code/')) {
-    targetUrl = `${baseUrl}/mun_code/${path.substring(9)}`;
+    targetUrl = `http://localhost:8000/mun_code/${path.substring(9)}`;
   } else {
-    targetUrl = `${baseUrl}/backend/${path}`;
+    targetUrl = `http://localhost:8000/backend/${path}`;
   }
   
   console.log(`Proxy POST: ${request.nextUrl.pathname} -> ${targetUrl}`);
