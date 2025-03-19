@@ -2,14 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Detecção de ambiente para determinar a URL da API
 const isDevelopment = process.env.NODE_ENV === 'development';
-const API_URL = isDevelopment 
-  ? 'http://localhost:8000' 
-  : process.env.NEXT_PUBLIC_API_URL || 'https://automacaofinancas-qas.weg.net';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ;
 
 export async function GET(request: NextRequest, { params }: { params: { path: string[] } }) {
   const path = params.path.join('/');
   let targetUrl;
-  
+  console.log("{API_URL}", {API_URL});
   // Mapear rotas especiais
   if (path.startsWith('qpe/')) {
     targetUrl = `${API_URL}/qpe/${path.substring(4)}${request.nextUrl.search}`;
