@@ -128,10 +128,10 @@ export default function AutomacaoFinancas() {
       // Determinar endpoint e próxima aba
       let endpoint, nextTab;
         switch(activeTab) {
-        case 'QPE': endpoint = `${API_URL}/qpe/process`; nextTab = 'SPB'; break;
-        case 'SPB': endpoint = `${API_URL}/spb/process`; nextTab = 'NFSERV'; break;
-        case 'NFSERV': endpoint = `${API_URL}/nfserv/process`; nextTab = 'MUN_CODE'; break;
-        case 'MUN_CODE': endpoint = `${API_URL}/mun_code/process`; nextTab = 'R189'; break;
+        case 'QPE': endpoint = `${API_URL}/backend/qpe/process`; nextTab = 'SPB'; break;
+        case 'SPB': endpoint = `${API_URL}/backend/spb/process`; nextTab = 'NFSERV'; break;
+        case 'NFSERV': endpoint = `${API_URL}/backend/nfserv/process`; nextTab = 'MUN_CODE'; break;
+        case 'MUN_CODE': endpoint = `${API_URL}/backend/mun_code/process`; nextTab = 'R189'; break;
         default: endpoint = `${API_URL}/backend/processar/r189`; nextTab = 'QPE';
       }
 

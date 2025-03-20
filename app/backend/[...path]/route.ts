@@ -48,13 +48,13 @@ export async function POST(request: NextRequest, { params }: { params: { path: s
   
   // Mapear rotas especiais
   if (path.startsWith('qpe/')) {
-    targetUrl = `${API_URL}/qpe/${path.substring(4)}`;
+    targetUrl = `${API_URL}/backend/qpe/${path.substring(4)}`;
   } else if (path.startsWith('spb/')) {
-    targetUrl = `${API_URL}/spb/${path.substring(4)}`;
+    targetUrl = `${API_URL}/backend/spb/${path.substring(4)}`;
   } else if (path.startsWith('nfserv/')) {
-    targetUrl = `${API_URL}/nfserv/${path.substring(7)}`;
+    targetUrl = `${API_URL}/backend/nfserv/${path.substring(7)}`;
   } else if (path.startsWith('mun_code/')) {
-    targetUrl = `${API_URL}/mun_code/${path.substring(9)}`;
+    targetUrl = `${API_URL}/backend/mun_code/${path.substring(9)}`;
   } else {
     targetUrl = `${API_URL}/backend/${path}`;
   }
