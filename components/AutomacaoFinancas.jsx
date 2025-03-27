@@ -39,6 +39,9 @@ export default function AutomacaoFinancas() {
   // Estado para controlar se os botões de validação estão habilitados
   const [validationEnabled, setValidationEnabled] = useState(false);
   
+  // Adicione um novo estado específico para o carregamento do botão Atualizar Arquivos
+  const [updateLoading, setUpdateLoading] = useState(false);
+  
   // Lista de empresas disponíveis
   const companies = [
     { id: 'orange', name: 'Orange', color: '#00579d' },
@@ -181,22 +184,40 @@ export default function AutomacaoFinancas() {
 
   // Função para resetar o processo
   const handleResetProcess = () => {
-    setFiles([]);
-    setSelectedFiles([]);
-    setError(null);
-    setStatus({
-      R189: 'Aguardando processamento',
-      QPE: 'Aguardando processamento',
-      SPB: 'Aguardando processamento',
-      NFSERV: 'Aguardando processamento',
-      MUN_CODE: 'Aguardando processamento'
-    });
-    setEnabledTabs({
-      R189: true, QPE: false, SPB: false, NFSERV: false, MUN_CODE: false
-    });
-    setValidationEnabled(false);
-    setActiveTab('R189');
-    setFileListKey(prevKey => prevKey + 1);
+    try {
+      // Resetar estados básicos de arquivos e seleção
+      setFiles([]);
+      setSelectedFiles([]);
+      setError(null);
+      
+      // Resetar o status das abas
+      setStatus({
+        R189: 'Aguardando processamento',
+        QPE: 'Aguardando processamento',
+        SPB: 'Aguardando processamento',
+        NFSERV: 'Aguardando processamento',
+        MUN_CODE: 'Aguardando processamento'
+      });
+      
+      // Resetar abas habilitadas
+      setEnabledTabs({
+        R189: true, QPE: false, SPB: false, NFSERV: false, MUN_CODE: false
+      });
+      
+      // Resetar validação e aba ativa
+      setValidationEnabled(false);
+      setActiveTab('R189');
+      setFileListKey(prevKey => prevKey + 1);
+      
+      // Se houver estados adicionais que foram adicionados e precisam ser resetados
+      if (typeof setOperationInProgress === 'function') {
+        setOperationInProgress(null);
+      }
+      
+      console.log("Processo resetado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao resetar processo:", error);
+    }
   };
 
   // Funções para seleção de arquivos
@@ -248,11 +269,11 @@ export default function AutomacaoFinancas() {
     }
   };
 
-  // Modifique a função handleUpdateFiles para definir o tipo de processamento
+  // Modifique a função handleUpdateFiles para usar esse estado específico
   const handleUpdateFiles = async () => {
     try {
-      setLoading(true);
-      // Define o tipo de processamento como "update" para mostrar a mensagem correta
+      // Use o estado específico em vez do estado compartilhado
+      setUpdateLoading(true);
       setProcessingType("update");
       
       const url = `${API_URL}/backend/files/process-complete`;
@@ -275,8 +296,8 @@ export default function AutomacaoFinancas() {
       console.error('Erro ao atualizar arquivos:', error);
       alert('Erro ao atualizar arquivos: ' + error.message);
     } finally {
-      setLoading(false);
-      // Limpa o tipo de processamento ao finalizar
+      // Use o estado específico em vez do estado compartilhado
+      setUpdateLoading(false);
       setProcessingType("");
     }
   };
@@ -757,12 +778,12 @@ export default function AutomacaoFinancas() {
                           alignItems: 'center',
                           py: 1.2,
                           px: 2,
-                          cursor: loading ? 'default' : 'pointer',
+                          cursor: updateLoading ? 'default' : 'pointer',
                           transition: 'background-color 0.2s',
-                          '&:hover': loading ? {} : { bgcolor: 'rgba(255, 255, 255, 0.1)' },
+                          '&:hover': updateLoading ? {} : { bgcolor: 'rgba(255, 255, 255, 0.1)' },
                           borderLeft: '2px solid rgba(255, 255, 255, 0.3)'
                         }}
-                        onClick={loading ? null : handleUpdateFiles}
+                        onClick={updateLoading ? null : handleUpdateFiles}
                       >
                         <Box sx={{ 
                           width: 6, 
@@ -774,7 +795,7 @@ export default function AutomacaoFinancas() {
                         <Typography sx={{ fontSize: '0.9rem' }}>
                           Atualizar Arquivos
                         </Typography>
-                        {loading && (
+                        {updateLoading && (
                           <CircularProgress size={14} sx={{ ml: 1, color: 'white' }} />
                         )}
                       </Box>
