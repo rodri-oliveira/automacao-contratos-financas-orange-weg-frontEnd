@@ -248,6 +248,39 @@ export default function AutomacaoFinancas() {
     }
   };
 
+  // Modifique a função handleUpdateFiles para definir o tipo de processamento
+  const handleUpdateFiles = async () => {
+    try {
+      setLoading(true);
+      // Define o tipo de processamento como "update" para mostrar a mensagem correta
+      setProcessingType("update");
+      
+      const url = `${API_URL}/backend/files/process-complete`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('Arquivos atualizados com sucesso!');
+      } else {
+        alert(`Erro: ${data.message || 'Falha ao atualizar arquivos'}`);
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar arquivos:', error);
+      alert('Erro ao atualizar arquivos: ' + error.message);
+    } finally {
+      setLoading(false);
+      // Limpa o tipo de processamento ao finalizar
+      setProcessingType("");
+    }
+  };
+
   // Componente FileList
   const FileList = () => {
     if (error) return <Typography color="error">{error}</Typography>;
@@ -474,6 +507,7 @@ export default function AutomacaoFinancas() {
                     borderRadius: 1,
                     my: 2
                   }}>
+                    <CircularProgress size={24} sx={{ mr: 2 }} />
                     <Typography 
                       variant="body1" 
                       sx={{ 
@@ -485,6 +519,8 @@ export default function AutomacaoFinancas() {
                         ? 'Consolidando todos os relatórios em um único arquivo...' 
                         : processingType === 'validation'
                         ? 'Executando validação...'
+                        : processingType === 'update'
+                        ? 'Atualizando arquivos do sistema...'
                         : activeTab === 'R189' 
                           ? 'Carregando arquivos R189...' 
                           : `Carregando arquivos ${activeTab}...`
@@ -507,6 +543,8 @@ export default function AutomacaoFinancas() {
                       ? 'Aguarde enquanto os relatórios são consolidados...' 
                       : processingType === 'validation'
                       ? 'Aguarde enquanto a validação é processada...'
+                      : processingType === 'update'
+                      ? 'Aguarde enquanto os arquivos são atualizados e processados...'
                       : activeTab === 'R189' 
                         ? 'Aguarde enquanto os arquivos R189 são carregados...' 
                         : `Aguarde enquanto os arquivos ${activeTab} são carregados...`
@@ -679,33 +717,71 @@ export default function AutomacaoFinancas() {
             
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
               {companies.map(company => (
-                <Box 
-                  key={company.id}
-                  sx={{ 
-                    display: 'flex',
-                    alignItems: 'center',
-                    py: 1.5,
-                    px: 2.5,
-                    cursor: 'pointer',
-                    transition: 'background-color 0.2s',
-                    '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' },
-                    ...(selectedCompany === company.id && {
-                      bgcolor: 'rgba(255, 255, 255, 0.15)',
-                      borderLeft: '4px solid white'
-                    })
-                  }}
-                  onClick={() => handleCompanySelect(company.id)}
-                >
-                  <Box sx={{ 
-                    width: 8, 
-                    height: 8, 
-                    borderRadius: '50%', 
-                    mr: 1.5, 
-                    bgcolor: 'white' 
-                  }} />
-                  <Typography sx={{ fontWeight: 500 }}>
-                    {company.name}
-                  </Typography>
+                <Box key={company.id}>
+                  {/* Botão principal da empresa */}
+                  <Box 
+                    sx={{ 
+                      display: 'flex',
+                      alignItems: 'center',
+                      py: 1.5,
+                      px: 2.5,
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s',
+                      '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' },
+                      ...(selectedCompany === company.id && {
+                        bgcolor: 'rgba(255, 255, 255, 0.15)',
+                        borderLeft: '4px solid white'
+                      })
+                    }}
+                    onClick={() => handleCompanySelect(company.id)}
+                  >
+                    <Box sx={{ 
+                      width: 8, 
+                      height: 8, 
+                      borderRadius: '50%', 
+                      mr: 1.5, 
+                      bgcolor: 'white' 
+                    }} />
+                    <Typography sx={{ fontWeight: 500 }}>
+                      {company.name}
+                    </Typography>
+                  </Box>
+
+                  {/* Submenu de Orange */}
+                  {selectedCompany === company.id && company.id === 'orange' && (
+                    <Box sx={{ pl: 4 }}>
+                      {/* Botão Atualizar Arquivos */}
+                      <Box 
+                        sx={{ 
+                          display: 'flex',
+                          alignItems: 'center',
+                          py: 1.2,
+                          px: 2,
+                          cursor: loading ? 'default' : 'pointer',
+                          transition: 'background-color 0.2s',
+                          '&:hover': loading ? {} : { bgcolor: 'rgba(255, 255, 255, 0.1)' },
+                          borderLeft: '2px solid rgba(255, 255, 255, 0.3)'
+                        }}
+                        onClick={loading ? null : handleUpdateFiles}
+                      >
+                        <Box sx={{ 
+                          width: 6, 
+                          height: 6, 
+                          borderRadius: '50%', 
+                          mr: 1.5, 
+                          bgcolor: 'rgba(255, 255, 255, 0.7)' 
+                        }} />
+                        <Typography sx={{ fontSize: '0.9rem' }}>
+                          Atualizar Arquivos
+                        </Typography>
+                        {loading && (
+                          <CircularProgress size={14} sx={{ ml: 1, color: 'white' }} />
+                        )}
+                      </Box>
+                      
+                      {/* Você pode adicionar outros submenus de Orange aqui */}
+                    </Box>
+                  )}
                 </Box>
               ))}
             </Box>

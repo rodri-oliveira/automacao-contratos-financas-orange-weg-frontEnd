@@ -3,4 +3,14 @@
   background-color: rgba(0, 87, 157, 0.1);
 }
 
+/* Animação para o ícone de atualização */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin-icon {
+  animation: spin 2s linear infinite;
+}
+
 /* Adicione outros estilos específicos conforme necessário */ 
