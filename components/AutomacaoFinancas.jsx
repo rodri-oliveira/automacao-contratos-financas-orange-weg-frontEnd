@@ -22,6 +22,10 @@ export default function AutomacaoFinancas() {
   // Novo estado para controlar o tipo de processamento atual
   const [processingType, setProcessingType] = useState("");
   
+  // Adicione estes estados para controlar o processo de atualização
+  const [updateProcessRunning, setUpdateProcessRunning] = useState(false);
+  const [updateStatusMessage, setUpdateStatusMessage] = useState("");
+  
   // Estado para controlar quais abas estão habilitadas
   const [enabledTabs, setEnabledTabs] = useState({
     R189: true, QPE: false, SPB: false, NFSERV: false, MUN_CODE: false
@@ -269,15 +273,29 @@ export default function AutomacaoFinancas() {
     }
   };
 
-  // Modifique a função handleUpdateFiles para usar o estilo já existente 
-  // em vez de um Dialog separado
+  // Função para iniciar ou cancelar o processo de atualização
   const handleUpdateFiles = async () => {
+    if (updateProcessRunning) {
+      // Se o processo está em andamento, tenta cancelá-lo
+      await cancelUpdateProcess();
+    } else {
+      // Se não há processo em andamento, inicia um
+      if (window.confirm('Iniciar o processo de atualização de arquivos?')) {
+        await startUpdateProcess();
+      }
+    }
+  };
+  
+  // Inicia o processo de atualização
+  const startUpdateProcess = async () => {
     try {
+      setUpdateProcessRunning(true);
       setLoading(true);
       setProcessingType("update");
+      setUpdateStatusMessage("Processo iniciado...");
       
-      const url = `${API_URL}/backend/files/process-complete`;
-      const response = await fetch(url, {
+      // Primeiro, executa a renomeação de arquivos
+      const renameResponse = await fetch(`${API_URL}/backend/files/rename-all-patterns`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -285,21 +303,189 @@ export default function AutomacaoFinancas() {
         }
       });
       
-      const data = await response.json();
+      const renameResult = await renameResponse.json();
       
-      if (data.success) {
-        alert('Arquivos atualizados com sucesso!');
-      } else {
-        alert(`Erro: ${data.message || 'Falha ao atualizar arquivos'}`);
+      // Verificar se foi cancelado
+      if (renameResult.cancelled) {
+        setUpdateStatusMessage("Processo cancelado durante a renomeação");
+        resetUpdateButton();
+        return;
       }
+      
+      // Verificar se renomeou com sucesso
+      if (!renameResult.success) {
+        setUpdateStatusMessage(`Erro na renomeação: ${renameResult.message}`);
+        resetUpdateButton();
+        return;
+      }
+      
+      setUpdateStatusMessage("Renomeação concluída! Iniciando movimentação...");
+      
+      // Agora, move os arquivos
+      const moveResponse = await fetch(`${API_URL}/backend/files/move-files`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+      
+      const moveResult = await moveResponse.json();
+      
+      // Verificar se foi cancelado
+      if (moveResult.cancelled) {
+        setUpdateStatusMessage("Processo cancelado durante a movimentação");
+        resetUpdateButton();
+        return;
+      }
+      
+      // Verificar se moveu com sucesso
+      if (!moveResult.success) {
+        setUpdateStatusMessage(`Erro na movimentação: ${moveResult.message}`);
+        resetUpdateButton();
+        return;
+      }
+      
+      // Finaliza com o processamento completo
+      const completeResponse = await fetch(`${API_URL}/backend/files/process-complete`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+      
+      const completeResult = await completeResponse.json();
+      
+      if (completeResult.success) {
+        setUpdateStatusMessage("Processo completo finalizado com sucesso!");
+        alert("Processo de atualização finalizado com sucesso!");
+      } else {
+        setUpdateStatusMessage(`Erro no processamento final: ${completeResult.message}`);
+      }
+      
     } catch (error) {
-      console.error('Erro ao atualizar arquivos:', error);
-      alert('Erro ao atualizar arquivos: ' + error.message);
+      console.error('Erro:', error);
+      setUpdateStatusMessage(`Erro ao executar o processo: ${error.message}`);
+      alert(`Erro ao executar o processo: ${error.message}`);
     } finally {
-      setLoading(false);
-      setProcessingType("");
+      resetUpdateButton();
     }
   };
+  
+  // Cancela o processo em andamento
+  const cancelUpdateProcess = async () => {
+    try {
+      // Mostrar indicador visual de que estamos tentando cancelar
+      setUpdateStatusMessage("Cancelando...");
+      
+      // Desabilitar temporariamente o botão durante o cancelamento
+      const tempDisabled = true;
+      
+      // Chamar endpoint de cancelamento
+      const response = await fetch(`${API_URL}/backend/files/cancel-process`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setUpdateStatusMessage("Processo cancelado com sucesso!");
+        
+        // Força uma atualização imediata da interface
+        resetUpdateButton();
+        
+        // Atualizar a interface (equivalente ao atualizarInterface do código original)
+        atualizarInterfaceAposCancelamento();
+        
+        // Alertar usuário
+        alert("Processo cancelado com sucesso!");
+      } else {
+        setUpdateStatusMessage(`Falha ao cancelar processo: ${result.message}`);
+        alert(`Falha ao cancelar processo: ${result.message}`);
+        resetUpdateButton();
+      }
+    } catch (error) {
+      console.error('Erro ao cancelar:', error);
+      setUpdateStatusMessage(`Erro ao comunicar com o servidor: ${error.message}`);
+      alert(`Erro ao comunicar com o servidor: ${error.message}`);
+      resetUpdateButton();
+    }
+  };
+  
+  // Função para atualizar a interface após cancelar
+  const atualizarInterfaceAposCancelamento = () => {
+    // Resetar o status das abas para o estado inicial
+    setStatus({
+      R189: 'Aguardando processamento',
+      QPE: 'Aguardando processamento',
+      SPB: 'Aguardando processamento',
+      NFSERV: 'Aguardando processamento',
+      MUN_CODE: 'Aguardando processamento'
+    });
+    
+    // Resetar possíveis arquivos carregados
+    setFiles([]);
+    setSelectedFiles([]);
+    
+    // Recarregar a lista de arquivos (se necessário)
+    setFileListKey(prevKey => prevKey + 1);
+    
+    // Limpar qualquer mensagem de erro existente
+    setError(null);
+  };
+  
+  // Reset do botão para estado inicial - função atualizada
+  const resetUpdateButton = () => {
+    setUpdateProcessRunning(false);
+    setLoading(false);
+    setProcessingType("");
+  };
+  
+  // Verificador de status periódico
+  useEffect(() => {
+    let statusCheckInterval;
+    
+    if (updateProcessRunning) {
+      statusCheckInterval = setInterval(async () => {
+        try {
+          const response = await fetch(`${API_URL}/backend/files/process-status`);
+          const status = await response.json();
+          
+          // Atualiza a mensagem de status se houver uma no servidor
+          if (status.message) {
+            setUpdateStatusMessage(status.message);
+          }
+          
+          // Se o processo terminou no servidor, atualiza a interface
+          if (!status.running) {
+            resetUpdateButton();
+            
+            if (status.success) {
+              setUpdateStatusMessage("Processo concluído com sucesso!");
+            } else if (status.cancelled) {
+              setUpdateStatusMessage("Processo cancelado pelo usuário");
+            } else {
+              setUpdateStatusMessage("Processo concluído ou cancelado");
+            }
+          }
+        } catch (error) {
+          console.error('Erro ao verificar status:', error);
+        }
+      }, 3000); // Verifica a cada 3 segundos
+    }
+    
+    // Limpa o intervalo quando o componente é desmontado ou o estado muda
+    return () => {
+      if (statusCheckInterval) {
+        clearInterval(statusCheckInterval);
+      }
+    };
+  }, [updateProcessRunning, API_URL]);
 
   // Componente FileList
   const FileList = () => {
@@ -540,7 +726,7 @@ export default function AutomacaoFinancas() {
                         : processingType === 'validation'
                         ? 'Executando validação...'
                         : processingType === 'update'
-                        ? 'Atualizando arquivos do sistema...'
+                        ? updateStatusMessage || 'Atualizando arquivos do sistema...'
                         : activeTab === 'R189' 
                           ? 'Carregando arquivos R189...' 
                           : `Carregando arquivos ${activeTab}...`
@@ -778,24 +964,31 @@ export default function AutomacaoFinancas() {
                             alignItems: 'center',
                             py: 1.2,
                             px: 2,
-                            cursor: updateLoading ? 'default' : 'pointer',
+                            cursor: loading && processingType === 'update' ? 'default' : 'pointer',
                             transition: 'background-color 0.2s',
-                            '&:hover': updateLoading ? {} : { bgcolor: 'rgba(255, 255, 255, 0.1)' },
-                            borderLeft: '2px solid rgba(255, 255, 255, 0.3)'
+                            '&:hover': (loading && processingType === 'update') ? {} : { bgcolor: 'rgba(255, 255, 255, 0.1)' },
+                            borderLeft: '2px solid rgba(255, 255, 255, 0.3)',
+                            ...(updateProcessRunning && {
+                              bgcolor: 'rgba(220, 53, 69, 0.3)', // Vermelho mais escuro quando processo em andamento
+                            })
                           }}
-                          onClick={updateLoading ? null : handleUpdateFiles}
+                          onClick={(loading && processingType === 'update' && updateStatusMessage === "Cancelando...") ? null : handleUpdateFiles}
                         >
                           <Box sx={{ 
                             width: 6, 
                             height: 6, 
                             borderRadius: '50%', 
                             mr: 1.5, 
-                            bgcolor: 'rgba(255, 255, 255, 0.7)' 
+                            bgcolor: updateProcessRunning ? 'rgba(220, 53, 69, 0.8)' : 'rgba(255, 255, 255, 0.7)' 
                           }} />
                           <Typography sx={{ fontSize: '0.9rem' }}>
-                            Atualizar Arquivos
+                            {updateStatusMessage === "Cancelando..." 
+                              ? 'Cancelando...' 
+                              : updateProcessRunning 
+                                ? 'Cancelar Atualização' 
+                                : 'Atualizar Arquivos'}
                           </Typography>
-                          {updateLoading && (
+                          {loading && processingType === "update" && (
                             <CircularProgress size={14} sx={{ ml: 1, color: 'white' }} />
                           )}
                         </Box>
