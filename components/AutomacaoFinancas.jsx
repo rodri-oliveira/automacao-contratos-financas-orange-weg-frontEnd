@@ -269,11 +269,11 @@ export default function AutomacaoFinancas() {
     }
   };
 
-  // Modifique a função handleUpdateFiles para usar esse estado específico
+  // Modifique a função handleUpdateFiles para usar o estilo já existente 
+  // em vez de um Dialog separado
   const handleUpdateFiles = async () => {
     try {
-      // Use o estado específico em vez do estado compartilhado
-      setUpdateLoading(true);
+      setLoading(true);
       setProcessingType("update");
       
       const url = `${API_URL}/backend/files/process-complete`;
@@ -296,8 +296,7 @@ export default function AutomacaoFinancas() {
       console.error('Erro ao atualizar arquivos:', error);
       alert('Erro ao atualizar arquivos: ' + error.message);
     } finally {
-      // Use o estado específico em vez do estado compartilhado
-      setUpdateLoading(false);
+      setLoading(false);
       setProcessingType("");
     }
   };
@@ -771,33 +770,35 @@ export default function AutomacaoFinancas() {
                   {/* Submenu de Orange */}
                   {selectedCompany === company.id && company.id === 'orange' && (
                     <Box sx={{ pl: 4 }}>
-                      {/* Botão Atualizar Arquivos */}
-                      <Box 
-                        sx={{ 
-                          display: 'flex',
-                          alignItems: 'center',
-                          py: 1.2,
-                          px: 2,
-                          cursor: updateLoading ? 'default' : 'pointer',
-                          transition: 'background-color 0.2s',
-                          '&:hover': updateLoading ? {} : { bgcolor: 'rgba(255, 255, 255, 0.1)' },
-                          borderLeft: '2px solid rgba(255, 255, 255, 0.3)'
-                        }}
-                        onClick={updateLoading ? null : handleUpdateFiles}
-                      >
-                        <Box sx={{ 
-                          width: 6, 
-                          height: 6, 
-                          borderRadius: '50%', 
-                          mr: 1.5, 
-                          bgcolor: 'rgba(255, 255, 255, 0.7)' 
-                        }} />
-                        <Typography sx={{ fontSize: '0.9rem' }}>
-                          Atualizar Arquivos
-                        </Typography>
-                        {updateLoading && (
-                          <CircularProgress size={14} sx={{ ml: 1, color: 'white' }} />
-                        )}
+                      {/* Botão Atualizar Arquivos com mensagem de status */}
+                      <Box sx={{ position: 'relative' }}>
+                        <Box 
+                          sx={{ 
+                            display: 'flex',
+                            alignItems: 'center',
+                            py: 1.2,
+                            px: 2,
+                            cursor: updateLoading ? 'default' : 'pointer',
+                            transition: 'background-color 0.2s',
+                            '&:hover': updateLoading ? {} : { bgcolor: 'rgba(255, 255, 255, 0.1)' },
+                            borderLeft: '2px solid rgba(255, 255, 255, 0.3)'
+                          }}
+                          onClick={updateLoading ? null : handleUpdateFiles}
+                        >
+                          <Box sx={{ 
+                            width: 6, 
+                            height: 6, 
+                            borderRadius: '50%', 
+                            mr: 1.5, 
+                            bgcolor: 'rgba(255, 255, 255, 0.7)' 
+                          }} />
+                          <Typography sx={{ fontSize: '0.9rem' }}>
+                            Atualizar Arquivos
+                          </Typography>
+                          {updateLoading && (
+                            <CircularProgress size={14} sx={{ ml: 1, color: 'white' }} />
+                          )}
+                        </Box>
                       </Box>
                       
                       {/* Você pode adicionar outros submenus de Orange aqui */}
