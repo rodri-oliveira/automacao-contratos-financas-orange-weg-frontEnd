@@ -289,121 +289,137 @@ export default function AutomacaoFinancas() {
   // Inicia o processo de atualização
   const startUpdateProcess = async () => {
     try {
+      // Configura os estados iniciais
       setUpdateProcessRunning(true);
       setLoading(true);
       setProcessingType("update");
       setUpdateStatusMessage("Processo iniciado...");
       
-      // Primeiro, executa a renomeação de arquivos
-      const renameResponse = await fetch(`${API_URL}/backend/files/rename-all-patterns`, {
+      console.log("Iniciando processo com o endpoint rename-clean");
+      
+      // Chamando o novo endpoint unificado /backend/files/rename-clean
+      const response = await fetch(`${API_URL}/backend/files/rename-clean`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Accept': 'application/json'
-        }
+        },
+        // Adicionamos parâmetros que indicam que este processo pode ser cancelado
+        body: JSON.stringify({ 
+          cancelable: true,
+          process_id: new Date().getTime(), // Geramos um ID único para o processo
+          process_type: 'rename-clean'  // Identificador para o cancelamento
+        })
       });
       
-      const renameResult = await renameResponse.json();
+      // Verificar se a resposta foi bem-sucedida
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
+      }
       
-      // Verificar se foi cancelado
-      if (renameResult.cancelled) {
-        setUpdateStatusMessage("Processo cancelado durante a renomeação");
-        resetUpdateButton();
+      // Clonar a resposta para poder lê-la várias vezes (para debug)
+      const responseClone = response.clone();
+      let responseText = await responseClone.text();
+      console.log("Resposta bruta:", responseText);
+      
+      // Tentar analisar como JSON
+      let result;
+      try {
+        // Convertemos o texto para JSON
+        result = JSON.parse(responseText);
+        console.log("Resposta como JSON:", result);
+      } catch (jsonError) {
+        console.error("Erro ao analisar JSON:", jsonError);
+        throw new Error("Resposta inválida do servidor");
+      }
+      
+      // Verificar se o processo foi cancelado imediatamente
+      if (result.cancelled) {
+        setUpdateStatusMessage("Processo cancelado pelo usuário");
+        alert("Processo cancelado pelo usuário");
+        // Não resetamos o botão imediatamente para evitar problemas de estado
+        setTimeout(() => resetUpdateButton(), 1000);
         return;
       }
       
-      // Verificar se renomeou com sucesso
-      if (!renameResult.success) {
-        setUpdateStatusMessage(`Erro na renomeação: ${renameResult.message}`);
-        resetUpdateButton();
-        return;
-      }
-      
-      setUpdateStatusMessage("Renomeação concluída! Iniciando movimentação...");
-      
-      // Agora, move os arquivos
-      const moveResponse = await fetch(`${API_URL}/backend/files/move-files`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
+      // Verificar se o processo foi iniciado com sucesso
+      if (result.success) {
+        // Se o backend indicar que o processo é assíncrono
+        if (result.async === true || result.status === 'processing') {
+          setUpdateStatusMessage(result.message || "Processando arquivos...");
+          console.log("Processo assíncrono iniciado, aguardando via polling");
+          // Não fazemos nada aqui, deixamos o useEffect checar o status
+        } else {
+          // Se o processo já foi concluído sincronamente
+          setUpdateStatusMessage("Processo finalizado com sucesso!");
+          
+          // Detalhes específicos do processamento, se disponíveis
+          const detalhes = result.details ? 
+            `\n${result.details.files_processed || 0} arquivos processados.` : 
+            '';
+            
+          // Mostrar alert apenas DEPOIS de resetar o botão para evitar problemas de UI
+          setTimeout(() => {
+            alert(`Processo de atualização finalizado com sucesso!${detalhes}`);
+            resetUpdateButton();
+          }, 100);
         }
-      });
-      
-      const moveResult = await moveResponse.json();
-      
-      // Verificar se foi cancelado
-      if (moveResult.cancelled) {
-        setUpdateStatusMessage("Processo cancelado durante a movimentação");
-        resetUpdateButton();
-        return;
-      }
-      
-      // Verificar se moveu com sucesso
-      if (!moveResult.success) {
-        setUpdateStatusMessage(`Erro na movimentação: ${moveResult.message}`);
-        resetUpdateButton();
-        return;
-      }
-      
-      // Finaliza com o processamento completo
-      const completeResponse = await fetch(`${API_URL}/backend/files/process-complete`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      });
-      
-      const completeResult = await completeResponse.json();
-      
-      if (completeResult.success) {
-        setUpdateStatusMessage("Processo completo finalizado com sucesso!");
-        alert("Processo de atualização finalizado com sucesso!");
       } else {
-        setUpdateStatusMessage(`Erro no processamento final: ${completeResult.message}`);
+        // Se o processo não foi bem-sucedido, mostramos o erro
+        setUpdateStatusMessage(`Erro no processamento: ${result.message || 'Falha desconhecida'}`);
+        alert(`Erro no processamento: ${result.message || 'Falha desconhecida'}`);
+        setTimeout(() => resetUpdateButton(), 1000);
       }
       
     } catch (error) {
-      console.error('Erro:', error);
+      console.error('Erro ao executar o processo:', error);
       setUpdateStatusMessage(`Erro ao executar o processo: ${error.message}`);
       alert(`Erro ao executar o processo: ${error.message}`);
-    } finally {
       resetUpdateButton();
     }
   };
   
-  // Cancela o processo em andamento
+  // Cancela o processo em andamento (adaptado para o novo endpoint)
   const cancelUpdateProcess = async () => {
     try {
+      console.log("Tentando cancelar o processo rename-clean");
+      
       // Mostrar indicador visual de que estamos tentando cancelar
       setUpdateStatusMessage("Cancelando...");
       
-      // Desabilitar temporariamente o botão durante o cancelamento
-      const tempDisabled = true;
-      
-      // Chamar endpoint de cancelamento
+      // Chamar endpoint de cancelamento, adaptado para o novo processo
       const response = await fetch(`${API_URL}/backend/files/cancel-process`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Accept': 'application/json'
-        }
+        },
+        // Indicamos o tipo de processo que estamos cancelando
+        body: JSON.stringify({
+          process_type: 'rename-clean'
+        })
       });
       
+      // Verificar se a resposta foi bem-sucedida
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
+      }
+      
       const result = await response.json();
+      console.log("Resposta do cancelamento:", result);
       
       if (result.success) {
         setUpdateStatusMessage("Processo cancelado com sucesso!");
         
-        // Força uma atualização imediata da interface
-        resetUpdateButton();
-        
-        // Atualizar a interface (equivalente ao atualizarInterface do código original)
+        // Atualizar a interface
         atualizarInterfaceAposCancelamento();
         
-        // Alertar usuário
-        alert("Processo cancelado com sucesso!");
+        // Alertar usuário (depois de um pequeno delay para garantir que o estado da UI foi atualizado)
+        setTimeout(() => {
+          alert("Processo cancelado com sucesso!");
+          // Resetamos o botão DEPOIS de mostrar o alert para evitar problemas de UI
+          resetUpdateButton();
+        }, 100);
       } else {
         setUpdateStatusMessage(`Falha ao cancelar processo: ${result.message}`);
         alert(`Falha ao cancelar processo: ${result.message}`);
@@ -451,10 +467,37 @@ export default function AutomacaoFinancas() {
     let statusCheckInterval;
     
     if (updateProcessRunning) {
+      console.log("Iniciando verificação periódica de status");
+      
       statusCheckInterval = setInterval(async () => {
+        if (!updateProcessRunning) {
+          console.log("Processo não está mais em execução, parando verificação");
+          clearInterval(statusCheckInterval);
+          return;
+        }
+        
         try {
-          const response = await fetch(`${API_URL}/backend/files/process-status`);
+          console.log("Verificando status do processo...");
+          
+          const response = await fetch(`${API_URL}/backend/files/process-status`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            // Adicionamos o parâmetro para identificar o tipo de processo
+            body: JSON.stringify({
+              process_type: 'rename-clean'
+            })
+          });
+          
+          if (!response.ok) {
+            console.error("Erro ao verificar status:", response.status, response.statusText);
+            return;
+          }
+          
           const status = await response.json();
+          console.log("Status recebido:", status);
           
           // Atualiza a mensagem de status se houver uma no servidor
           if (status.message) {
@@ -462,15 +505,28 @@ export default function AutomacaoFinancas() {
           }
           
           // Se o processo terminou no servidor, atualiza a interface
-          if (!status.running) {
-            resetUpdateButton();
+          // Verificamos explicitamente se running é false para evitar problemas com valores undefined
+          if (status.running === false) {
+            console.log("Processo não está mais em execução");
             
             if (status.success) {
               setUpdateStatusMessage("Processo concluído com sucesso!");
+              
+              // Mostramos o alerta apenas APÓS o processo ser realmente concluído
+              const detalhes = status.details ? 
+                `\n${status.details.files_processed || 0} arquivos processados.` : 
+                '';
+                
+              setTimeout(() => {
+                alert(`Processo de atualização finalizado com sucesso!${detalhes}`);
+                resetUpdateButton();
+              }, 100);
             } else if (status.cancelled) {
               setUpdateStatusMessage("Processo cancelado pelo usuário");
+              setTimeout(() => resetUpdateButton(), 500);
             } else {
-              setUpdateStatusMessage("Processo concluído ou cancelado");
+              setUpdateStatusMessage("Processo concluído");
+              setTimeout(() => resetUpdateButton(), 500);
             }
           }
         } catch (error) {
@@ -482,6 +538,7 @@ export default function AutomacaoFinancas() {
     // Limpa o intervalo quando o componente é desmontado ou o estado muda
     return () => {
       if (statusCheckInterval) {
+        console.log("Limpando intervalo de verificação de status");
         clearInterval(statusCheckInterval);
       }
     };
