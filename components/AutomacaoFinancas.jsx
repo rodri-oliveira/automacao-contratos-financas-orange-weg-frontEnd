@@ -26,22 +26,22 @@ export default function AutomacaoFinancas() {
   const [updateProcessRunning, setUpdateProcessRunning] = useState(false);
   const [updateStatusMessage, setUpdateStatusMessage] = useState("");
   
-  // Estado para controlar quais abas estão habilitadas
+  // Estado para controlar quais abas estão habilitadas - Habilitando todas por padrão
   const [enabledTabs, setEnabledTabs] = useState({
-    R189: true, QPE: false, SPB: false, NFSERV: false, MUN_CODE: false
+    R189: true, NF_QPE: true, NF_SPB: true, FATURAS: true, SRV_CODE: true
   });
   
-  // Estado para controlar o status de cada etapa
+  // Estado para controlar o status de cada etapa - Atualizando para os novos nomes
   const [status, setStatus] = useState({
     R189: 'Aguardando processamento',
-    QPE: 'Aguardando processamento',
-    SPB: 'Aguardando processamento',
-    NFSERV: 'Aguardando processamento',
-    MUN_CODE: 'Aguardando processamento'
+    NF_QPE: 'Aguardando processamento',
+    NF_SPB: 'Aguardando processamento',
+    FATURAS: 'Aguardando processamento',
+    SRV_CODE: 'Aguardando processamento'
   });
   
-  // Estado para controlar se os botões de validação estão habilitados
-  const [validationEnabled, setValidationEnabled] = useState(false);
+  // Habilitando validações por padrão
+  const [validationEnabled, setValidationEnabled] = useState(true);
   
   // Adicione um novo estado específico para o carregamento do botão Atualizar Arquivos
   const [updateLoading, setUpdateLoading] = useState(false);
@@ -122,71 +122,62 @@ export default function AutomacaoFinancas() {
     }
   }, [activeTab]);
 
-  // Função para processar arquivos
+  // Função para processar arquivos - Atualizando para novos nomes
   const handleProcessFiles = async () => {
-        if (selectedFiles.length === 0) {
-            setError("Por favor, selecione pelo menos um arquivo para processar.");
-            return;
-        }
+    if (selectedFiles.length === 0) {
+      setError("Por favor, selecione pelo menos um arquivo para processar.");
+      return;
+    }
 
     try {
-        setLoading(true);
+      setLoading(true);
       
-      // Determinar endpoint e próxima aba
-      let endpoint, nextTab;
-        switch(activeTab) {
-        case 'QPE': endpoint = `${API_URL}/backend/qpe/process`; nextTab = 'SPB'; break;
-        case 'SPB': endpoint = `${API_URL}/backend/spb/process`; nextTab = 'NFSERV'; break;
-        case 'NFSERV': endpoint = `${API_URL}/backend/nfserv/process`; nextTab = 'MUN_CODE'; break;
-        case 'MUN_CODE': endpoint = `${API_URL}/backend/mun_code/process`; nextTab = 'R189'; break;
-        default: endpoint = `${API_URL}/backend/processar/r189`; nextTab = 'QPE';
+      // Determinar endpoint com base na aba ativa
+      let endpoint;
+      switch(activeTab) {
+        case 'NF_QPE': endpoint = `${API_URL}/backend/qpe/process`; break;
+        case 'NF_SPB': endpoint = `${API_URL}/backend/spb/process`; break;
+        case 'FATURAS': endpoint = `${API_URL}/backend/nfserv/process`; break;
+        case 'SRV_CODE': endpoint = `${API_URL}/backend/mun_code/process`; break;
+        default: endpoint = `${API_URL}/backend/processar/r189`;
       }
 
-        const response = await fetch(endpoint, {
-            method: 'POST',
+      const response = await fetch(endpoint, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(selectedFiles)
-        });
+        body: JSON.stringify(selectedFiles)
+      });
 
-        const data = await response.json();
-        
-        if (data.success) {
-            setStatus(prevStatus => ({
-                ...prevStatus,
-                [activeTab]: 'Processamento concluído'
-            }));
-            
-            setFiles([]);
-            setSelectedFiles([]);
-            setFileListKey(prevKey => prevKey + 1);
-            
-            if (activeTab === 'MUN_CODE') {
-                setValidationEnabled(true);
-          setActiveTab('R189');
-            } else {
-                setEnabledTabs(prevState => ({
-                    ...prevState,
-                    [nextTab]: true
-                }));
-                setActiveTab(nextTab);
-            }
-            
-            alert('Arquivos processados com sucesso!');
-        } else {
-            throw new Error(data.error || 'Erro no processamento');
-        }
-    } catch (error) {
+      const data = await response.json();
+      
+      if (data.success) {
         setStatus(prevStatus => ({
-            ...prevStatus,
-            [activeTab]: 'Erro no processamento'
+          ...prevStatus,
+          [activeTab]: 'Processamento concluído'
         }));
-        setError(`Erro ao processar arquivos: ${error.message}`);
+        
+        setFiles([]);
+        setSelectedFiles([]);
+        setFileListKey(prevKey => prevKey + 1);
+        
+        // Removendo a lógica de mudar para a próxima aba
+        // Apenas mostrando mensagem de sucesso
+        alert('Arquivos processados com sucesso!');
+      } else {
+        throw new Error(data.error || 'Erro no processamento');
+      }
+    } catch (error) {
+      setStatus(prevStatus => ({
+        ...prevStatus,
+        [activeTab]: 'Erro no processamento'
+      }));
+      setError(`Erro ao processar arquivos: ${error.message}`);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
-  // Função para resetar o processo
+  // Função para resetar o processo - Atualizando para novos nomes
   const handleResetProcess = () => {
     try {
       // Resetar estados básicos de arquivos e seleção
@@ -194,22 +185,21 @@ export default function AutomacaoFinancas() {
       setSelectedFiles([]);
       setError(null);
       
-      // Resetar o status das abas
+      // Resetar o status das abas com novos nomes
       setStatus({
         R189: 'Aguardando processamento',
-        QPE: 'Aguardando processamento',
-        SPB: 'Aguardando processamento',
-        NFSERV: 'Aguardando processamento',
-        MUN_CODE: 'Aguardando processamento'
+        NF_QPE: 'Aguardando processamento',
+        NF_SPB: 'Aguardando processamento',
+        FATURAS: 'Aguardando processamento',
+        SRV_CODE: 'Aguardando processamento'
       });
       
-      // Resetar abas habilitadas
+      // Resetar abas habilitadas (todas continuam habilitadas)
       setEnabledTabs({
-        R189: true, QPE: false, SPB: false, NFSERV: false, MUN_CODE: false
+        R189: true, NF_QPE: true, NF_SPB: true, FATURAS: true, SRV_CODE: true
       });
       
-      // Resetar validação e aba ativa
-      setValidationEnabled(false);
+      // Não reseta validationEnabled pois agora está sempre habilitado
       setActiveTab('R189');
       setFileListKey(prevKey => prevKey + 1);
       
@@ -438,10 +428,10 @@ export default function AutomacaoFinancas() {
     // Resetar o status das abas para o estado inicial
     setStatus({
       R189: 'Aguardando processamento',
-      QPE: 'Aguardando processamento',
-      SPB: 'Aguardando processamento',
-      NFSERV: 'Aguardando processamento',
-      MUN_CODE: 'Aguardando processamento'
+      NF_QPE: 'Aguardando processamento',
+      NF_SPB: 'Aguardando processamento',
+      FATURAS: 'Aguardando processamento',
+      SRV_CODE: 'Aguardando processamento'
     });
     
     // Resetar possíveis arquivos carregados
@@ -718,7 +708,7 @@ export default function AutomacaoFinancas() {
         <Box sx={{ flex: 1, p: 2.5, overflowY: 'auto' }}>
           <Paper sx={{ mb: 2.5 }}>
           <Tabs value={activeTab}>
-              {['R189', 'QPE', 'SPB', 'NFSERV', 'MUN_CODE'].map(tab => (
+              {['R189', 'NF_QPE', 'NF_SPB', 'FATURAS', 'SRV_CODE'].map(tab => (
               <Tab 
                 key={tab}
                 label={tab}
@@ -856,7 +846,7 @@ export default function AutomacaoFinancas() {
                       sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
                       onClick={() => handleValidation('qpe_r189')}
                     >
-                      4. Verificar Divergências QPE vs R189
+                      4. Verificar Divergências NF_QPE vs R189
                     </Button>
                     <Button 
                       fullWidth 
@@ -864,7 +854,7 @@ export default function AutomacaoFinancas() {
                       sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
                       onClick={() => handleValidation('spb_r189')}
                     >
-                      5. Verificar Divergências SPB vs R189
+                      5. Verificar Divergências NF_SPB vs R189
                     </Button>
                     <Button 
                       fullWidth 
@@ -872,7 +862,7 @@ export default function AutomacaoFinancas() {
                       sx={{ mb: 3, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
                       onClick={() => handleValidation('nfserv_r189')}
                     >
-                      6. Verificar Divergências NFSERV vs R189
+                      6. Verificar Divergências FATURAS vs R189
                     </Button>
                     
                     <Box sx={{ 
