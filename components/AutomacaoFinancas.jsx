@@ -135,6 +135,7 @@ export default function AutomacaoFinancas() {
   }, [activeTab]);
 
   // Função para processar arquivos - Atualizando para compatibilidade com backend
+  // e adicionando navegação automática para a próxima aba após conclusão
   const handleProcessFiles = async () => {
     if (selectedFiles.length === 0) {
       setError("Por favor, selecione pelo menos um arquivo para processar.");
@@ -170,17 +171,44 @@ export default function AutomacaoFinancas() {
       const data = await response.json();
       
       if (data.success) {
+        // Guardar a aba atual para usá-la na navegação depois
+        const currentTab = activeTab;
+        
         setStatus(prevStatus => ({
           ...prevStatus,
-          [activeTab]: 'Processamento concluído'
+          [currentTab]: 'Processamento concluído'
         }));
         
         setFiles([]);
         setSelectedFiles([]);
         setFileListKey(prevKey => prevKey + 1);
         
-        // Apenas mostrando mensagem de sucesso
+        // Mostrar mensagem de sucesso
         alert('Arquivos processados com sucesso!');
+        
+        // Navegar para a próxima aba após conclusão do processamento
+        const tabsOrdem = ['R189', 'NF_QPE', 'NF_SPB', 'FATURAS', 'SRV_CODE'];
+        const currentIndex = tabsOrdem.indexOf(currentTab);
+        
+        // Se não for a última aba, muda para a próxima
+        if (currentIndex < tabsOrdem.length - 1) {
+          const nextTab = tabsOrdem[currentIndex + 1];
+          console.log(`Mudando para a próxima aba: ${nextTab}`);
+          
+          // Usando setTimeout para garantir que tudo foi processado antes de mudar
+          setTimeout(() => {
+            // Primeiro muda a aba
+            handleTabChange(nextTab);
+            
+            // Depois de um pequeno delay, busca arquivos da nova aba
+            // Usando uma função separada para evitar problemas de contexto
+            setTimeout(() => {
+              console.log(`Buscando arquivos para a aba ${nextTab}`);
+              // Ignorando o valor em cache do useCallback para garantir que usa o valor atual
+              handleSearchFilesForTab(nextTab);
+            }, 800);
+          }, 500);
+        }
       } else {
         throw new Error(data.error || 'Erro no processamento');
       }
@@ -191,6 +219,54 @@ export default function AutomacaoFinancas() {
       }));
       setError(`Erro ao processar arquivos: ${error.message}`);
     } finally {
+      setLoading(false);
+    }
+  };
+
+  // Função auxiliar para buscar arquivos para uma aba específica
+  // Isso evita problemas com o valor em cache do useCallback
+  const handleSearchFilesForTab = (tab) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Mapeamento de novos nomes para os nomes esperados pelo backend
+      let endpointType;
+      switch(tab) {
+        case 'NF_QPE': endpointType = 'QPE'; break;
+        case 'NF_SPB': endpointType = 'SPB'; break;
+        case 'FATURAS': endpointType = 'NFSERV'; break;
+        case 'SRV_CODE': endpointType = 'MUN_CODE'; break;
+        default: endpointType = 'R189';
+      }
+      
+      console.log(`Buscando arquivos para tipo: ${endpointType}`);
+      
+      fetch(`${API_URL}/backend/arquivos/${endpointType}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.arquivos) {
+          setFiles(data.arquivos);
+        } else {
+          throw new Error(data.detail || 'Erro desconhecido');
+        }
+      })
+      .catch(error => {
+        setError(`Erro ao buscar arquivos: ${error.message}`);
+        setFiles([]);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+    } catch (error) {
+      setError(`Erro ao buscar arquivos: ${error.message}`);
+      setFiles([]);
       setLoading(false);
     }
   };
