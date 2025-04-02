@@ -830,17 +830,25 @@ export default function AutomacaoFinancas() {
                       fullWidth 
                       variant="outlined" 
                       sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
-                      onClick={() => handleValidation('mun_code_r189')}
+                      onClick={() => handleValidation('r189')}
                     >
-                      1. Verificar Divergências MUN_CODE vs R189
+                      1. Verificar Divergências R189
                     </Button>
                     <Button 
                       fullWidth 
                       variant="outlined" 
                       sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
-                      onClick={() => handleValidation('r189')}
+                      onClick={() => handleValidation('mun_code_r189_simple')}
                     >
-                      2. Verificar Divergências R189
+                      2. Verificar Divergências SRV_CODE_SIMPLE
+                    </Button>
+                    <Button 
+                      fullWidth 
+                      variant="outlined" 
+                      sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
+                      onClick={() => handleValidation('mun_code_r189')}
+                    >
+                      3. Verificar Divergências SRV_CODE
                     </Button>
                     <Button 
                       fullWidth 
@@ -848,7 +856,7 @@ export default function AutomacaoFinancas() {
                       sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
                       onClick={() => handleValidation('qpe_r189')}
                     >
-                      3. Verificar Divergências QPE vs R189
+                      4. Verificar Divergências QPE vs R189
                     </Button>
                     <Button 
                       fullWidth 
@@ -856,7 +864,7 @@ export default function AutomacaoFinancas() {
                       sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
                       onClick={() => handleValidation('spb_r189')}
                     >
-                      4. Verificar Divergências SPB vs R189
+                      5. Verificar Divergências SPB vs R189
                     </Button>
                     <Button 
                       fullWidth 
@@ -864,7 +872,7 @@ export default function AutomacaoFinancas() {
                       sx={{ mb: 3, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
                       onClick={() => handleValidation('nfserv_r189')}
                     >
-                      5. Verificar Divergências NFSERV vs R189
+                      6. Verificar Divergências NFSERV vs R189
                     </Button>
                     
                     <Box sx={{ 
