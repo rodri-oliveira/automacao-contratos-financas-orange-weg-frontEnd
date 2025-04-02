@@ -89,40 +89,52 @@ export default function AutomacaoFinancas() {
     }
   };
 
-  // Função para buscar arquivos
+  // Função para buscar arquivos - Atualizado para mapear novos nomes para o backend
   const handleSearchFiles = useCallback(async () => {
     try {
-        setLoading(true);
-        setError(null);
-        
-        const response = await fetch(`${API_URL}/backend/arquivos/${activeTab}`, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            if (data.arquivos) {
-                setFiles(data.arquivos);
-            } else {
-                throw new Error(data.detail || 'Erro desconhecido');
-            }
-        } else {
-            throw new Error(data.detail || 'Erro na requisição');
+      setLoading(true);
+      setError(null);
+      
+      // Mapeamento de novos nomes para os nomes esperados pelo backend
+      let endpointType;
+      switch(activeTab) {
+        case 'NF_QPE': endpointType = 'QPE'; break;
+        case 'NF_SPB': endpointType = 'SPB'; break;
+        case 'FATURAS': endpointType = 'NFSERV'; break;
+        case 'SRV_CODE': endpointType = 'MUN_CODE'; break;
+        default: endpointType = 'R189';
+      }
+      
+      console.log(`Buscando arquivos para tipo: ${endpointType}`);
+      
+      const response = await fetch(`${API_URL}/backend/arquivos/${endpointType}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
         }
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (data.arquivos) {
+          setFiles(data.arquivos);
+        } else {
+          throw new Error(data.detail || 'Erro desconhecido');
+        }
+      } else {
+        throw new Error(data.detail || 'Erro na requisição');
+      }
     } catch (error) {
-        setError(`Erro ao buscar arquivos: ${error.message}`);
-        setFiles([]);
+      setError(`Erro ao buscar arquivos: ${error.message}`);
+      setFiles([]);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   }, [activeTab]);
 
-  // Função para processar arquivos - Atualizando para novos nomes
+  // Função para processar arquivos - Atualizando para compatibilidade com backend
   const handleProcessFiles = async () => {
     if (selectedFiles.length === 0) {
       setError("Por favor, selecione pelo menos um arquivo para processar.");
@@ -132,16 +144,23 @@ export default function AutomacaoFinancas() {
     try {
       setLoading(true);
       
-      // Determinar endpoint com base na aba ativa
-      let endpoint;
+      // Mapeamento de novos nomes para os nomes esperados pelo backend
+      let endpointType;
       switch(activeTab) {
-        case 'NF_QPE': endpoint = `${API_URL}/backend/qpe/process`; break;
-        case 'NF_SPB': endpoint = `${API_URL}/backend/spb/process`; break;
-        case 'FATURAS': endpoint = `${API_URL}/backend/nfserv/process`; break;
-        case 'SRV_CODE': endpoint = `${API_URL}/backend/mun_code/process`; break;
-        default: endpoint = `${API_URL}/backend/processar/r189`;
+        case 'NF_QPE': endpointType = 'QPE'; break;
+        case 'NF_SPB': endpointType = 'SPB'; break;
+        case 'FATURAS': endpointType = 'NFSERV'; break;
+        case 'SRV_CODE': endpointType = 'MUN_CODE'; break;
+        default: endpointType = 'R189';
       }
+      
+      // Construir o endpoint com o tipo mapeado
+      const endpoint = endpointType === 'R189' 
+        ? `${API_URL}/backend/processar/r189`
+        : `${API_URL}/backend/${endpointType.toLowerCase()}/process`;
 
+      console.log(`Enviando requisição para endpoint: ${endpoint}`);
+      
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -160,7 +179,6 @@ export default function AutomacaoFinancas() {
         setSelectedFiles([]);
         setFileListKey(prevKey => prevKey + 1);
         
-        // Removendo a lógica de mudar para a próxima aba
         // Apenas mostrando mensagem de sucesso
         alert('Arquivos processados com sucesso!');
       } else {
@@ -241,7 +259,18 @@ export default function AutomacaoFinancas() {
       // Define o tipo de processamento para mostrar a mensagem correta
       setProcessingType(type === 'consolidate_reports' ? 'consolidation' : 'validation');
       
-      const endpoint = `${API_URL}/backend/validations/${type}`;
+      // Alguns endpoints de validação podem usar os nomes das abas, então vamos 
+      // certificar de que estamos usando os nomes corretos para o backend
+      let adjustedType = type;
+      
+      // Ajustar endpoints de validação que possam usar nomes de abas
+      if (type === 'qpe_r189' || type === 'spb_r189' || type === 'nfserv_r189') {
+        console.log(`Enviando validação para endpoint: ${adjustedType}`);
+      }
+      
+      const endpoint = `${API_URL}/backend/validations/${adjustedType}`;
+      console.log(`Enviando validação para endpoint: ${endpoint}`);
+      
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
