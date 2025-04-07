@@ -541,42 +541,6 @@ export default function AutomacaoFinancas() {
     }
   };
 
-  // Cancela o processo em andamento
-  const cancelMoveProcess = async () => {
-    try {
-      setMoveStatusMessage("Cancelando...");
-      
-      const response = await fetch(`${API_URL}/backend/files-repository/cancel-process`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        setMoveStatusMessage("Processo cancelado com sucesso!");
-        alert("Processo cancelado com sucesso!");
-        resetMoveButton();
-      } else {
-        setMoveStatusMessage(`Falha ao cancelar processo: ${result.message}`);
-        alert(`Falha ao cancelar processo: ${result.message}`);
-        resetMoveButton();
-      }
-    } catch (error) {
-      console.error('Erro ao cancelar:', error);
-      setMoveStatusMessage(`Erro ao comunicar com o servidor: ${error.message}`);
-      alert(`Erro ao comunicar com o servidor: ${error.message}`);
-      resetMoveButton();
-    }
-  };
-
-  // Reset do botão de movimentação
-  const resetMoveButton = () => {
-    setMoveProcessRunning(false);
-    setLoading(false);
-    setProcessingType("");
-  };
-
   // Verificador de status periódico
   useEffect(() => {
     let statusCheckInterval;
@@ -584,6 +548,13 @@ export default function AutomacaoFinancas() {
     if (moveProcessRunning) {
       statusCheckInterval = setInterval(async () => {
         try {
+          // Importante: Não interferir com o outro processo verificando apenas o status 
+          // do processo de movimentação, sem alterar nada se já estiver cancelado
+          if (!moveProcessRunning) {
+            clearInterval(statusCheckInterval);
+            return;
+          }
+          
           const response = await fetch(`${API_URL}/backend/files-repository/process-status`);
           
           if (!response.ok) {
@@ -608,6 +579,50 @@ export default function AutomacaoFinancas() {
       }
     };
   }, [moveProcessRunning, API_URL]);
+
+  // Antes de cancelar, garantir que apenas o processo de movimentação seja afetado
+  const cancelMoveProcess = async () => {
+    try {
+      // Verificar se é realmente o processo de movimentação que está rodando
+      if (!moveProcessRunning) {
+        return;
+      }
+      
+      setMoveStatusMessage("Cancelando...");
+      
+      // Chamar endpoint de cancelamento APENAS se estivermos executando o processo de movimentação
+      const response = await fetch(`${API_URL}/backend/files-repository/cancel-process`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setMoveStatusMessage("Processo cancelado com sucesso!");
+        // Resetar APENAS o botão de movimentação
+        resetMoveButton();
+        alert("Processo de movimentação cancelado com sucesso!");
+      } else {
+        setMoveStatusMessage(`Falha ao cancelar processo: ${result.message}`);
+        resetMoveButton();
+      }
+    } catch (error) {
+      console.error('Erro ao cancelar movimentação:', error);
+      setMoveStatusMessage(`Erro ao comunicar com o servidor: ${error.message}`);
+      resetMoveButton();
+    }
+  };
+
+  // Alterar a função de reset para garantir que apenas o botão de movimentação seja resetado
+  const resetMoveButton = () => {
+    setMoveProcessRunning(false);
+    // Não alterar o loading ou processingType global, apenas se for realmente o processo de movimentação
+    if (processingType === "move") {
+      setLoading(false);
+      setProcessingType("");
+    }
+  };
 
   // Componente FileList
   const FileList = () => {
