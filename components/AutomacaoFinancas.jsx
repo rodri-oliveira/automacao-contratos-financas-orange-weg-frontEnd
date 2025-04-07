@@ -46,6 +46,10 @@ export default function AutomacaoFinancas() {
   // Adicione um novo estado específico para o carregamento do botão Atualizar Arquivos
   const [updateLoading, setUpdateLoading] = useState(false);
   
+  // Adicione estes estados no início da função (junto com os outros estados)
+  const [moveProcessRunning, setMoveProcessRunning] = useState(false);
+  const [moveStatusMessage, setMoveStatusMessage] = useState("");
+  
   // Lista de empresas disponíveis
   const companies = [
     { id: 'orange', name: 'Orange', color: '#00579d' },
@@ -487,6 +491,124 @@ export default function AutomacaoFinancas() {
     };
   }, [updateProcessRunning, API_URL]);
 
+  // Função para iniciar ou cancelar o processo de movimentação
+  const handleMoveFiles = async () => {
+    if (moveProcessRunning) {
+      // Se o processo está em andamento, tenta cancelá-lo
+      await cancelMoveProcess();
+    } else {
+      // Se não há processo em andamento, inicia um
+      if (window.confirm('Iniciar o processo de movimentação de arquivos?')) {
+        await startMoveProcess();
+      }
+    }
+  };
+
+  // Inicia o processo de movimentação
+  const startMoveProcess = async () => {
+    try {
+      // Configura os estados iniciais
+      setMoveProcessRunning(true);
+      setLoading(true);
+      setProcessingType("move");
+      setMoveStatusMessage("Processo iniciado...");
+      
+      // Chamando o endpoint para mover arquivos
+      const response = await fetch(`${API_URL}/backend/files-repository/copy-to-repository`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          cancelable: true
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setMoveStatusMessage(result.message || "Movendo arquivos...");
+      } else {
+        setMoveStatusMessage(`Erro: ${result.message || 'Falha desconhecida'}`);
+        resetMoveButton();
+      }
+    } catch (error) {
+      console.error('Erro ao iniciar movimentação:', error);
+      setMoveStatusMessage(`Erro: ${error.message}`);
+      resetMoveButton();
+    }
+  };
+
+  // Cancela o processo em andamento
+  const cancelMoveProcess = async () => {
+    try {
+      setMoveStatusMessage("Cancelando...");
+      
+      const response = await fetch(`${API_URL}/backend/files-repository/cancel-process`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setMoveStatusMessage("Processo cancelado com sucesso!");
+        alert("Processo cancelado com sucesso!");
+        resetMoveButton();
+      } else {
+        setMoveStatusMessage(`Falha ao cancelar processo: ${result.message}`);
+        alert(`Falha ao cancelar processo: ${result.message}`);
+        resetMoveButton();
+      }
+    } catch (error) {
+      console.error('Erro ao cancelar:', error);
+      setMoveStatusMessage(`Erro ao comunicar com o servidor: ${error.message}`);
+      alert(`Erro ao comunicar com o servidor: ${error.message}`);
+      resetMoveButton();
+    }
+  };
+
+  // Reset do botão de movimentação
+  const resetMoveButton = () => {
+    setMoveProcessRunning(false);
+    setLoading(false);
+    setProcessingType("");
+  };
+
+  // Verificador de status periódico
+  useEffect(() => {
+    let statusCheckInterval;
+    
+    if (moveProcessRunning) {
+      statusCheckInterval = setInterval(async () => {
+        try {
+          const response = await fetch(`${API_URL}/backend/files-repository/process-status`);
+          
+          if (!response.ok) {
+            return;
+          }
+          
+          const result = await response.json();
+          
+          if (result.success && result.status === "cancelled") {
+            setMoveStatusMessage("Processo cancelado pelo servidor");
+            resetMoveButton();
+          }
+        } catch (error) {
+          console.error('Erro ao verificar status:', error);
+        }
+      }, 3000);
+    }
+    
+    return () => {
+      if (statusCheckInterval) {
+        clearInterval(statusCheckInterval);
+      }
+    };
+  }, [moveProcessRunning, API_URL]);
+
   // Componente FileList
   const FileList = () => {
     if (error) return <Typography color="error">{error}</Typography>;
@@ -844,6 +966,44 @@ export default function AutomacaoFinancas() {
                 )}
               </Box>
             </Paper>
+
+            {/* Botão Mover Arquivos */}
+            <Box sx={{ position: 'relative', mt: 1 }}>
+              <Box 
+                sx={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  py: 1.2,
+                  px: 2,
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s',
+                  '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' },
+                  borderLeft: '2px solid rgba(255, 255, 255, 0.3)',
+                  ...(moveProcessRunning && {
+                    bgcolor: 'rgba(220, 53, 69, 0.3)', // Vermelho mais escuro quando processo em andamento
+                  })
+                }}
+                onClick={handleMoveFiles}
+              >
+                <Box sx={{ 
+                  width: 6, 
+                  height: 6, 
+                  borderRadius: '50%', 
+                  mr: 1.5, 
+                  bgcolor: moveProcessRunning ? 'rgba(220, 53, 69, 0.8)' : 'rgba(255, 255, 255, 0.7)' 
+                }} />
+                <Typography sx={{ fontSize: '0.9rem' }}>
+                  {moveStatusMessage === "Cancelando..." 
+                    ? 'Cancelando...' 
+                    : moveProcessRunning 
+                      ? 'Cancelar Movimentação' 
+                      : 'Mover Arquivos'}
+                </Typography>
+                {moveProcessRunning && (
+                  <CircularProgress size={14} sx={{ ml: 1, color: 'white' }} />
+                )}
+              </Box>
+            </Box>
             </Box>
           </Paper>
         </Box>
@@ -989,6 +1149,44 @@ export default function AutomacaoFinancas() {
                                 : 'Atualizar Arquivos'}
                           </Typography>
                           {loading && processingType === "update" && (
+                            <CircularProgress size={14} sx={{ ml: 1, color: 'white' }} />
+                          )}
+                        </Box>
+                      </Box>
+                      
+                      {/* ADICIONE O BOTÃO MOVER ARQUIVOS AQUI */}
+                      <Box sx={{ position: 'relative', mt: 1 }}>
+                        <Box 
+                          sx={{ 
+                            display: 'flex',
+                            alignItems: 'center',
+                            py: 1.2,
+                            px: 2,
+                            cursor: 'pointer',
+                            transition: 'background-color 0.2s',
+                            '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' },
+                            borderLeft: '2px solid rgba(255, 255, 255, 0.3)',
+                            ...(moveProcessRunning && {
+                              bgcolor: 'rgba(220, 53, 69, 0.3)', // Vermelho mais escuro quando processo em andamento
+                            })
+                          }}
+                          onClick={handleMoveFiles}
+                        >
+                          <Box sx={{ 
+                            width: 6, 
+                            height: 6, 
+                            borderRadius: '50%', 
+                            mr: 1.5, 
+                            bgcolor: moveProcessRunning ? 'rgba(220, 53, 69, 0.8)' : 'rgba(255, 255, 255, 0.7)' 
+                          }} />
+                          <Typography sx={{ fontSize: '0.9rem' }}>
+                            {moveStatusMessage === "Cancelando..." 
+                              ? 'Cancelando...' 
+                              : moveProcessRunning 
+                                ? 'Cancelar Movimentação' 
+                                : 'Mover Arquivos'}
+                          </Typography>
+                          {moveProcessRunning && (
                             <CircularProgress size={14} sx={{ ml: 1, color: 'white' }} />
                           )}
                         </Box>
