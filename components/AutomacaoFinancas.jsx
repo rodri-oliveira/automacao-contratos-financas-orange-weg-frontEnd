@@ -26,22 +26,22 @@ export default function AutomacaoFinancas() {
   const [updateProcessRunning, setUpdateProcessRunning] = useState(false);
   const [updateStatusMessage, setUpdateStatusMessage] = useState("");
   
-  // Estado para controlar quais abas estão habilitadas - Habilitando todas por padrão
+  // Estado para controlar quais abas estão habilitadas
   const [enabledTabs, setEnabledTabs] = useState({
-    R189: true, NF_QPE: true, NF_SPB: true, FATURAS: true, SRV_CODE: true
+    R189: true, QPE: false, SPB: false, NFSERV: false, MUN_CODE: false
   });
   
-  // Estado para controlar o status de cada etapa - Atualizando para os novos nomes
+  // Estado para controlar o status de cada etapa
   const [status, setStatus] = useState({
     R189: 'Aguardando processamento',
-    NF_QPE: 'Aguardando processamento',
-    NF_SPB: 'Aguardando processamento',
-    FATURAS: 'Aguardando processamento',
-    SRV_CODE: 'Aguardando processamento'
+    QPE: 'Aguardando processamento',
+    SPB: 'Aguardando processamento',
+    NFSERV: 'Aguardando processamento',
+    MUN_CODE: 'Aguardando processamento'
   });
   
-  // Habilitando validações por padrão
-  const [validationEnabled, setValidationEnabled] = useState(true);
+  // Estado para controlar se os botões de validação estão habilitados
+  const [validationEnabled, setValidationEnabled] = useState(false);
   
   // Adicione um novo estado específico para o carregamento do botão Atualizar Arquivos
   const [updateLoading, setUpdateLoading] = useState(false);
@@ -89,189 +89,104 @@ export default function AutomacaoFinancas() {
     }
   };
 
-  // Função para buscar arquivos - Atualizado para mapear novos nomes para o backend
+  // Função para buscar arquivos
   const handleSearchFiles = useCallback(async () => {
     try {
-      setLoading(true);
-      setError(null);
-      
-      // Mapeamento de novos nomes para os nomes esperados pelo backend
-      let endpointType;
-      switch(activeTab) {
-        case 'NF_QPE': endpointType = 'QPE'; break;
-        case 'NF_SPB': endpointType = 'SPB'; break;
-        case 'FATURAS': endpointType = 'NFSERV'; break;
-        case 'SRV_CODE': endpointType = 'MUN_CODE'; break;
-        default: endpointType = 'R189';
-      }
-      
-      console.log(`Buscando arquivos para tipo: ${endpointType}`);
-      
-      const response = await fetch(`${API_URL}/backend/arquivos/${endpointType}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
+        setLoading(true);
+        setError(null);
+        
+        const response = await fetch(`${API_URL}/backend/arquivos/${activeTab}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (response.ok) {
-        if (data.arquivos) {
-          setFiles(data.arquivos);
+        if (response.ok) {
+            if (data.arquivos) {
+                setFiles(data.arquivos);
+            } else {
+                throw new Error(data.detail || 'Erro desconhecido');
+            }
         } else {
-          throw new Error(data.detail || 'Erro desconhecido');
+            throw new Error(data.detail || 'Erro na requisição');
         }
-      } else {
-        throw new Error(data.detail || 'Erro na requisição');
-      }
     } catch (error) {
-      setError(`Erro ao buscar arquivos: ${error.message}`);
-      setFiles([]);
+        setError(`Erro ao buscar arquivos: ${error.message}`);
+        setFiles([]);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   }, [activeTab]);
 
-  // Função para processar arquivos - Atualizando para compatibilidade com backend
-  // e adicionando navegação automática para a próxima aba após conclusão
+  // Função para processar arquivos
   const handleProcessFiles = async () => {
-    if (selectedFiles.length === 0) {
-      setError("Por favor, selecione pelo menos um arquivo para processar.");
-      return;
-    }
+        if (selectedFiles.length === 0) {
+            setError("Por favor, selecione pelo menos um arquivo para processar.");
+            return;
+        }
 
     try {
-      setLoading(true);
+        setLoading(true);
       
-      // Mapeamento de novos nomes para os nomes esperados pelo backend
-      let endpointType;
-      switch(activeTab) {
-        case 'NF_QPE': endpointType = 'QPE'; break;
-        case 'NF_SPB': endpointType = 'SPB'; break;
-        case 'FATURAS': endpointType = 'NFSERV'; break;
-        case 'SRV_CODE': endpointType = 'MUN_CODE'; break;
-        default: endpointType = 'R189';
+      // Determinar endpoint e próxima aba
+      let endpoint, nextTab;
+        switch(activeTab) {
+        case 'QPE': endpoint = `${API_URL}/backend/qpe/process`; nextTab = 'SPB'; break;
+        case 'SPB': endpoint = `${API_URL}/backend/spb/process`; nextTab = 'NFSERV'; break;
+        case 'NFSERV': endpoint = `${API_URL}/backend/nfserv/process`; nextTab = 'MUN_CODE'; break;
+        case 'MUN_CODE': endpoint = `${API_URL}/backend/mun_code/process`; nextTab = 'R189'; break;
+        default: endpoint = `${API_URL}/backend/processar/r189`; nextTab = 'QPE';
       }
-      
-      // Construir o endpoint com o tipo mapeado
-      const endpoint = endpointType === 'R189' 
-        ? `${API_URL}/backend/processar/r189`
-        : `${API_URL}/backend/${endpointType.toLowerCase()}/process`;
 
-      console.log(`Enviando requisição para endpoint: ${endpoint}`);
-      
-      const response = await fetch(endpoint, {
-        method: 'POST',
+        const response = await fetch(endpoint, {
+            method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(selectedFiles)
-      });
+            body: JSON.stringify(selectedFiles)
+        });
 
-      const data = await response.json();
-      
-      if (data.success) {
-        // Guardar a aba atual para usá-la na navegação depois
-        const currentTab = activeTab;
+        const data = await response.json();
         
-        setStatus(prevStatus => ({
-          ...prevStatus,
-          [currentTab]: 'Processamento concluído'
-        }));
-        
-        setFiles([]);
-        setSelectedFiles([]);
-        setFileListKey(prevKey => prevKey + 1);
-        
-        // Mostrar mensagem de sucesso
-        alert('Arquivos processados com sucesso!');
-        
-        // Navegar para a próxima aba após conclusão do processamento
-        const tabsOrdem = ['R189', 'NF_QPE', 'NF_SPB', 'FATURAS', 'SRV_CODE'];
-        const currentIndex = tabsOrdem.indexOf(currentTab);
-        
-        // Se não for a última aba, muda para a próxima
-        if (currentIndex < tabsOrdem.length - 1) {
-          const nextTab = tabsOrdem[currentIndex + 1];
-          console.log(`Mudando para a próxima aba: ${nextTab}`);
-          
-          // Usando setTimeout para garantir que tudo foi processado antes de mudar
-          setTimeout(() => {
-            // Primeiro muda a aba
-            handleTabChange(nextTab);
+        if (data.success) {
+            setStatus(prevStatus => ({
+                ...prevStatus,
+                [activeTab]: 'Processamento concluído'
+            }));
             
-            // Depois de um pequeno delay, busca arquivos da nova aba
-            // Usando uma função separada para evitar problemas de contexto
-            setTimeout(() => {
-              console.log(`Buscando arquivos para a aba ${nextTab}`);
-              // Ignorando o valor em cache do useCallback para garantir que usa o valor atual
-              handleSearchFilesForTab(nextTab);
-            }, 800);
-          }, 500);
-        }
-      } else {
-        throw new Error(data.error || 'Erro no processamento');
-      }
-    } catch (error) {
-      setStatus(prevStatus => ({
-        ...prevStatus,
-        [activeTab]: 'Erro no processamento'
-      }));
-      setError(`Erro ao processar arquivos: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Função auxiliar para buscar arquivos para uma aba específica
-  // Isso evita problemas com o valor em cache do useCallback
-  const handleSearchFilesForTab = (tab) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Mapeamento de novos nomes para os nomes esperados pelo backend
-      let endpointType;
-      switch(tab) {
-        case 'NF_QPE': endpointType = 'QPE'; break;
-        case 'NF_SPB': endpointType = 'SPB'; break;
-        case 'FATURAS': endpointType = 'NFSERV'; break;
-        case 'SRV_CODE': endpointType = 'MUN_CODE'; break;
-        default: endpointType = 'R189';
-      }
-      
-      console.log(`Buscando arquivos para tipo: ${endpointType}`);
-      
-      fetch(`${API_URL}/backend/arquivos/${endpointType}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.arquivos) {
-          setFiles(data.arquivos);
+            setFiles([]);
+            setSelectedFiles([]);
+            setFileListKey(prevKey => prevKey + 1);
+            
+            if (activeTab === 'MUN_CODE') {
+                setValidationEnabled(true);
+          setActiveTab('R189');
+            } else {
+                setEnabledTabs(prevState => ({
+                    ...prevState,
+                    [nextTab]: true
+                }));
+                setActiveTab(nextTab);
+            }
+            
+            alert('Arquivos processados com sucesso!');
         } else {
-          throw new Error(data.detail || 'Erro desconhecido');
+            throw new Error(data.error || 'Erro no processamento');
         }
-      })
-      .catch(error => {
-        setError(`Erro ao buscar arquivos: ${error.message}`);
-        setFiles([]);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
     } catch (error) {
-      setError(`Erro ao buscar arquivos: ${error.message}`);
-      setFiles([]);
-      setLoading(false);
+        setStatus(prevStatus => ({
+            ...prevStatus,
+            [activeTab]: 'Erro no processamento'
+        }));
+        setError(`Erro ao processar arquivos: ${error.message}`);
+    } finally {
+        setLoading(false);
     }
   };
 
-  // Função para resetar o processo - Atualizando para novos nomes
+  // Função para resetar o processo
   const handleResetProcess = () => {
     try {
       // Resetar estados básicos de arquivos e seleção
@@ -279,21 +194,22 @@ export default function AutomacaoFinancas() {
       setSelectedFiles([]);
       setError(null);
       
-      // Resetar o status das abas com novos nomes
+      // Resetar o status das abas
       setStatus({
         R189: 'Aguardando processamento',
-        NF_QPE: 'Aguardando processamento',
-        NF_SPB: 'Aguardando processamento',
-        FATURAS: 'Aguardando processamento',
-        SRV_CODE: 'Aguardando processamento'
+        QPE: 'Aguardando processamento',
+        SPB: 'Aguardando processamento',
+        NFSERV: 'Aguardando processamento',
+        MUN_CODE: 'Aguardando processamento'
       });
       
-      // Resetar abas habilitadas (todas continuam habilitadas)
+      // Resetar abas habilitadas
       setEnabledTabs({
-        R189: true, NF_QPE: true, NF_SPB: true, FATURAS: true, SRV_CODE: true
+        R189: true, QPE: false, SPB: false, NFSERV: false, MUN_CODE: false
       });
       
-      // Não reseta validationEnabled pois agora está sempre habilitado
+      // Resetar validação e aba ativa
+      setValidationEnabled(false);
       setActiveTab('R189');
       setFileListKey(prevKey => prevKey + 1);
       
@@ -335,18 +251,7 @@ export default function AutomacaoFinancas() {
       // Define o tipo de processamento para mostrar a mensagem correta
       setProcessingType(type === 'consolidate_reports' ? 'consolidation' : 'validation');
       
-      // Alguns endpoints de validação podem usar os nomes das abas, então vamos 
-      // certificar de que estamos usando os nomes corretos para o backend
-      let adjustedType = type;
-      
-      // Ajustar endpoints de validação que possam usar nomes de abas
-      if (type === 'qpe_r189' || type === 'spb_r189' || type === 'nfserv_r189') {
-        console.log(`Enviando validação para endpoint: ${adjustedType}`);
-      }
-      
-      const endpoint = `${API_URL}/backend/validations/${adjustedType}`;
-      console.log(`Enviando validação para endpoint: ${endpoint}`);
-      
+      const endpoint = `${API_URL}/backend/validations/${type}`;
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
@@ -384,137 +289,121 @@ export default function AutomacaoFinancas() {
   // Inicia o processo de atualização
   const startUpdateProcess = async () => {
     try {
-      // Configura os estados iniciais
       setUpdateProcessRunning(true);
       setLoading(true);
       setProcessingType("update");
       setUpdateStatusMessage("Processo iniciado...");
       
-      console.log("Iniciando processo com o endpoint rename-clean");
-      
-      // Chamando o novo endpoint unificado /backend/files/rename-clean
-      const response = await fetch(`${API_URL}/backend/files/rename-clean`, {
+      // Primeiro, executa a renomeação de arquivos
+      const renameResponse = await fetch(`${API_URL}/backend/files/rename-all-patterns`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Accept': 'application/json'
-        },
-        // Adicionamos parâmetros que indicam que este processo pode ser cancelado
-        body: JSON.stringify({ 
-          cancelable: true,
-          process_id: new Date().getTime(), // Geramos um ID único para o processo
-          process_type: 'rename-clean'  // Identificador para o cancelamento
-        })
+        }
       });
       
-      // Verificar se a resposta foi bem-sucedida
-      if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
-      }
+      const renameResult = await renameResponse.json();
       
-      // Clonar a resposta para poder lê-la várias vezes (para debug)
-      const responseClone = response.clone();
-      let responseText = await responseClone.text();
-      console.log("Resposta bruta:", responseText);
-      
-      // Tentar analisar como JSON
-      let result;
-      try {
-        // Convertemos o texto para JSON
-        result = JSON.parse(responseText);
-        console.log("Resposta como JSON:", result);
-      } catch (jsonError) {
-        console.error("Erro ao analisar JSON:", jsonError);
-        throw new Error("Resposta inválida do servidor");
-      }
-      
-      // Verificar se o processo foi cancelado imediatamente
-      if (result.cancelled) {
-        setUpdateStatusMessage("Processo cancelado pelo usuário");
-        alert("Processo cancelado pelo usuário");
-        // Não resetamos o botão imediatamente para evitar problemas de estado
-        setTimeout(() => resetUpdateButton(), 1000);
+      // Verificar se foi cancelado
+      if (renameResult.cancelled) {
+        setUpdateStatusMessage("Processo cancelado durante a renomeação");
+        resetUpdateButton();
         return;
       }
       
-      // Verificar se o processo foi iniciado com sucesso
-      if (result.success) {
-        // Se o backend indicar que o processo é assíncrono
-        if (result.async === true || result.status === 'processing') {
-          setUpdateStatusMessage(result.message || "Processando arquivos...");
-          console.log("Processo assíncrono iniciado, aguardando via polling");
-          // Não fazemos nada aqui, deixamos o useEffect checar o status
-        } else {
-          // Se o processo já foi concluído sincronamente
-          setUpdateStatusMessage("Processo finalizado com sucesso!");
-          
-          // Detalhes específicos do processamento, se disponíveis
-          const detalhes = result.details ? 
-            `\n${result.details.files_processed || 0} arquivos processados.` : 
-            '';
-            
-          // Mostrar alert apenas DEPOIS de resetar o botão para evitar problemas de UI
-          setTimeout(() => {
-            alert(`Processo de atualização finalizado com sucesso!${detalhes}`);
-            resetUpdateButton();
-          }, 100);
+      // Verificar se renomeou com sucesso
+      if (!renameResult.success) {
+        setUpdateStatusMessage(`Erro na renomeação: ${renameResult.message}`);
+        resetUpdateButton();
+        return;
+      }
+      
+      setUpdateStatusMessage("Renomeação concluída! Iniciando movimentação...");
+      
+      // Agora, move os arquivos
+      const moveResponse = await fetch(`${API_URL}/backend/files/move-files`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         }
+      });
+      
+      const moveResult = await moveResponse.json();
+      
+      // Verificar se foi cancelado
+      if (moveResult.cancelled) {
+        setUpdateStatusMessage("Processo cancelado durante a movimentação");
+        resetUpdateButton();
+        return;
+      }
+      
+      // Verificar se moveu com sucesso
+      if (!moveResult.success) {
+        setUpdateStatusMessage(`Erro na movimentação: ${moveResult.message}`);
+        resetUpdateButton();
+        return;
+      }
+      
+      // Finaliza com o processamento completo
+      const completeResponse = await fetch(`${API_URL}/backend/files/process-complete`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+      
+      const completeResult = await completeResponse.json();
+      
+      if (completeResult.success) {
+        setUpdateStatusMessage("Processo completo finalizado com sucesso!");
+        alert("Processo de atualização finalizado com sucesso!");
       } else {
-        // Se o processo não foi bem-sucedido, mostramos o erro
-        setUpdateStatusMessage(`Erro no processamento: ${result.message || 'Falha desconhecida'}`);
-        alert(`Erro no processamento: ${result.message || 'Falha desconhecida'}`);
-        setTimeout(() => resetUpdateButton(), 1000);
+        setUpdateStatusMessage(`Erro no processamento final: ${completeResult.message}`);
       }
       
     } catch (error) {
-      console.error('Erro ao executar o processo:', error);
+      console.error('Erro:', error);
       setUpdateStatusMessage(`Erro ao executar o processo: ${error.message}`);
       alert(`Erro ao executar o processo: ${error.message}`);
+    } finally {
       resetUpdateButton();
     }
   };
   
-  // Cancela o processo em andamento (adaptado para o novo endpoint)
+  // Cancela o processo em andamento
   const cancelUpdateProcess = async () => {
     try {
-      console.log("Tentando cancelar o processo rename-clean");
-      
       // Mostrar indicador visual de que estamos tentando cancelar
       setUpdateStatusMessage("Cancelando...");
       
-      // Chamar endpoint de cancelamento, adaptado para o novo processo
+      // Desabilitar temporariamente o botão durante o cancelamento
+      const tempDisabled = true;
+      
+      // Chamar endpoint de cancelamento
       const response = await fetch(`${API_URL}/backend/files/cancel-process`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Accept': 'application/json'
-        },
-        // Indicamos o tipo de processo que estamos cancelando
-        body: JSON.stringify({
-          process_type: 'rename-clean'
-        })
+        }
       });
       
-      // Verificar se a resposta foi bem-sucedida
-      if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
-      }
-      
       const result = await response.json();
-      console.log("Resposta do cancelamento:", result);
       
       if (result.success) {
         setUpdateStatusMessage("Processo cancelado com sucesso!");
         
-        // Atualizar a interface
+        // Força uma atualização imediata da interface
+        resetUpdateButton();
+        
+        // Atualizar a interface (equivalente ao atualizarInterface do código original)
         atualizarInterfaceAposCancelamento();
         
-        // Alertar usuário (depois de um pequeno delay para garantir que o estado da UI foi atualizado)
-        setTimeout(() => {
-          alert("Processo cancelado com sucesso!");
-          // Resetamos o botão DEPOIS de mostrar o alert para evitar problemas de UI
-          resetUpdateButton();
-        }, 100);
+        // Alertar usuário
+        alert("Processo cancelado com sucesso!");
       } else {
         setUpdateStatusMessage(`Falha ao cancelar processo: ${result.message}`);
         alert(`Falha ao cancelar processo: ${result.message}`);
@@ -533,10 +422,10 @@ export default function AutomacaoFinancas() {
     // Resetar o status das abas para o estado inicial
     setStatus({
       R189: 'Aguardando processamento',
-      NF_QPE: 'Aguardando processamento',
-      NF_SPB: 'Aguardando processamento',
-      FATURAS: 'Aguardando processamento',
-      SRV_CODE: 'Aguardando processamento'
+      QPE: 'Aguardando processamento',
+      SPB: 'Aguardando processamento',
+      NFSERV: 'Aguardando processamento',
+      MUN_CODE: 'Aguardando processamento'
     });
     
     // Resetar possíveis arquivos carregados
@@ -562,37 +451,10 @@ export default function AutomacaoFinancas() {
     let statusCheckInterval;
     
     if (updateProcessRunning) {
-      console.log("Iniciando verificação periódica de status");
-      
       statusCheckInterval = setInterval(async () => {
-        if (!updateProcessRunning) {
-          console.log("Processo não está mais em execução, parando verificação");
-          clearInterval(statusCheckInterval);
-          return;
-        }
-        
         try {
-          console.log("Verificando status do processo...");
-          
-          const response = await fetch(`${API_URL}/backend/files/process-status`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            // Adicionamos o parâmetro para identificar o tipo de processo
-            body: JSON.stringify({
-              process_type: 'rename-clean'
-            })
-          });
-          
-          if (!response.ok) {
-            console.error("Erro ao verificar status:", response.status, response.statusText);
-            return;
-          }
-          
+          const response = await fetch(`${API_URL}/backend/files/process-status`);
           const status = await response.json();
-          console.log("Status recebido:", status);
           
           // Atualiza a mensagem de status se houver uma no servidor
           if (status.message) {
@@ -600,28 +462,15 @@ export default function AutomacaoFinancas() {
           }
           
           // Se o processo terminou no servidor, atualiza a interface
-          // Verificamos explicitamente se running é false para evitar problemas com valores undefined
-          if (status.running === false) {
-            console.log("Processo não está mais em execução");
+          if (!status.running) {
+            resetUpdateButton();
             
             if (status.success) {
               setUpdateStatusMessage("Processo concluído com sucesso!");
-              
-              // Mostramos o alerta apenas APÓS o processo ser realmente concluído
-              const detalhes = status.details ? 
-                `\n${status.details.files_processed || 0} arquivos processados.` : 
-                '';
-                
-              setTimeout(() => {
-                alert(`Processo de atualização finalizado com sucesso!${detalhes}`);
-                resetUpdateButton();
-              }, 100);
             } else if (status.cancelled) {
               setUpdateStatusMessage("Processo cancelado pelo usuário");
-              setTimeout(() => resetUpdateButton(), 500);
             } else {
-              setUpdateStatusMessage("Processo concluído");
-              setTimeout(() => resetUpdateButton(), 500);
+              setUpdateStatusMessage("Processo concluído ou cancelado");
             }
           }
         } catch (error) {
@@ -633,7 +482,6 @@ export default function AutomacaoFinancas() {
     // Limpa o intervalo quando o componente é desmontado ou o estado muda
     return () => {
       if (statusCheckInterval) {
-        console.log("Limpando intervalo de verificação de status");
         clearInterval(statusCheckInterval);
       }
     };
@@ -813,7 +661,7 @@ export default function AutomacaoFinancas() {
         <Box sx={{ flex: 1, p: 2.5, overflowY: 'auto' }}>
           <Paper sx={{ mb: 2.5 }}>
           <Tabs value={activeTab}>
-              {['R189', 'NF_QPE', 'NF_SPB', 'FATURAS', 'SRV_CODE'].map(tab => (
+              {['R189', 'QPE', 'SPB', 'NFSERV', 'MUN_CODE'].map(tab => (
               <Tab 
                 key={tab}
                 label={tab}
@@ -925,25 +773,17 @@ export default function AutomacaoFinancas() {
                       fullWidth 
                       variant="outlined" 
                       sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
-                      onClick={() => handleValidation('r189')}
-                    >
-                      1. Verificar Divergências R189
-                    </Button>
-                    <Button 
-                      fullWidth 
-                      variant="outlined" 
-                      sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
-                      onClick={() => handleValidation('mun_code_r189_simple')}
-                    >
-                      2. Verificar Divergências SRV_CODE_SIMPLE
-                    </Button>
-                    <Button 
-                      fullWidth 
-                      variant="outlined" 
-                      sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
                       onClick={() => handleValidation('mun_code_r189')}
                     >
-                      3. Verificar Divergências SRV_CODE
+                      1. Verificar Divergências MUN_CODE vs R189
+                    </Button>
+                    <Button 
+                      fullWidth 
+                      variant="outlined" 
+                      sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
+                      onClick={() => handleValidation('r189')}
+                    >
+                      2. Verificar Divergências R189
                     </Button>
                     <Button 
                       fullWidth 
@@ -951,7 +791,7 @@ export default function AutomacaoFinancas() {
                       sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
                       onClick={() => handleValidation('qpe_r189')}
                     >
-                      4. Verificar Divergências NF_QPE vs R189
+                      3. Verificar Divergências QPE vs R189
                     </Button>
                     <Button 
                       fullWidth 
@@ -959,7 +799,7 @@ export default function AutomacaoFinancas() {
                       sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
                       onClick={() => handleValidation('spb_r189')}
                     >
-                      5. Verificar Divergências NF_SPB vs R189
+                      4. Verificar Divergências SPB vs R189
                     </Button>
                     <Button 
                       fullWidth 
@@ -967,7 +807,7 @@ export default function AutomacaoFinancas() {
                       sx={{ mb: 3, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
                       onClick={() => handleValidation('nfserv_r189')}
                     >
-                      6. Verificar Divergências FATURAS vs R189
+                      5. Verificar Divergências NFSERV vs R189
                     </Button>
                     
                     <Box sx={{ 
