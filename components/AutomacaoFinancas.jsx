@@ -864,6 +864,8 @@ export default function AutomacaoFinancas() {
                         ? 'Executando validação...'
                         : processingType === 'update'
                         ? updateStatusMessage || 'Atualizando arquivos do sistema...'
+                        : processingType === 'move'
+                        ? moveStatusMessage || 'Movendo arquivos...'
                         : activeTab === 'R189' 
                           ? 'Carregando arquivos R189...' 
                           : `Carregando arquivos ${activeTab}...`
@@ -888,6 +890,8 @@ export default function AutomacaoFinancas() {
                       ? 'Aguarde enquanto a validação é processada...'
                       : processingType === 'update'
                       ? 'Aguarde enquanto os arquivos são atualizados e processados...'
+                      : processingType === 'move'
+                      ? 'Aguarde enquanto os arquivos são movidos...'
                       : activeTab === 'R189' 
                         ? 'Aguarde enquanto os arquivos R189 são carregados...' 
                         : `Aguarde enquanto os arquivos ${activeTab} são carregados...`
@@ -981,44 +985,6 @@ export default function AutomacaoFinancas() {
                 )}
               </Box>
             </Paper>
-
-            {/* Botão Mover Arquivos */}
-            <Box sx={{ position: 'relative', mt: 1 }}>
-              <Box 
-                sx={{ 
-                  display: 'flex',
-                  alignItems: 'center',
-                  py: 1.2,
-                  px: 2,
-                  cursor: 'pointer',
-                  transition: 'background-color 0.2s',
-                  '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' },
-                  borderLeft: '2px solid rgba(255, 255, 255, 0.3)',
-                  ...(moveProcessRunning && {
-                    bgcolor: 'rgba(220, 53, 69, 0.3)', // Vermelho mais escuro quando processo em andamento
-                  })
-                }}
-                onClick={handleMoveFiles}
-              >
-                <Box sx={{ 
-                  width: 6, 
-                  height: 6, 
-                  borderRadius: '50%', 
-                  mr: 1.5, 
-                  bgcolor: moveProcessRunning ? 'rgba(220, 53, 69, 0.8)' : 'rgba(255, 255, 255, 0.7)' 
-                }} />
-                <Typography sx={{ fontSize: '0.9rem' }}>
-                  {moveStatusMessage === "Cancelando..." 
-                    ? 'Cancelando...' 
-                    : moveProcessRunning 
-                      ? 'Cancelar Movimentação' 
-                      : 'Mover Arquivos'}
-                </Typography>
-                {moveProcessRunning && (
-                  <CircularProgress size={14} sx={{ ml: 1, color: 'white' }} />
-                )}
-              </Box>
-            </Box>
             </Box>
           </Paper>
         </Box>
