@@ -298,8 +298,10 @@ export default function AutomacaoFinancas() {
       setProcessingType("update");
       setUpdateStatusMessage("Processo iniciado...");
       
-      // Primeiro, executa a renomeação de arquivos
-      const renameResponse = await fetch(`${API_URL}/backend/files/rename-all-patterns`, {
+      // Chamar o endpoint unificado rename-clean (que faz tudo em um único processo)
+      console.log("Iniciando processo com o endpoint rename-clean");
+      
+      const response = await fetch(`${API_URL}/backend/files/rename-clean`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -307,67 +309,28 @@ export default function AutomacaoFinancas() {
         }
       });
       
-      const renameResult = await renameResponse.json();
-      
-      // Verificar se foi cancelado
-      if (renameResult.cancelled) {
-        setUpdateStatusMessage("Processo cancelado durante a renomeação");
-        resetUpdateButton();
-        return;
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
       }
       
-      // Verificar se renomeou com sucesso
-      if (!renameResult.success) {
-        setUpdateStatusMessage(`Erro na renomeação: ${renameResult.message}`);
-        resetUpdateButton();
-        return;
-      }
+      const result = await response.json();
       
-      setUpdateStatusMessage("Renomeação concluída! Iniciando movimentação...");
-      
-      // Agora, move os arquivos
-      const moveResponse = await fetch(`${API_URL}/backend/files/move-files`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      });
-      
-      const moveResult = await moveResponse.json();
-      
-      // Verificar se foi cancelado
-      if (moveResult.cancelled) {
-        setUpdateStatusMessage("Processo cancelado durante a movimentação");
-        resetUpdateButton();
-        return;
-      }
-      
-      // Verificar se moveu com sucesso
-      if (!moveResult.success) {
-        setUpdateStatusMessage(`Erro na movimentação: ${moveResult.message}`);
-        resetUpdateButton();
-        return;
-      }
-      
-      // Finaliza com o processamento completo
-      const completeResponse = await fetch(`${API_URL}/backend/files/process-complete`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      });
-      
-      const completeResult = await completeResponse.json();
-      
-      if (completeResult.success) {
-        setUpdateStatusMessage("Processo completo finalizado com sucesso!");
-        alert("Processo de atualização finalizado com sucesso!");
+      if (result.success) {
+        // Formatação do resultado para exibição
+        const totais = result.totais || {};
+        const totalRenomeados = (totais.qpe_sem_letra || 0) + 
+                               (totais.qpe_com_letra || 0) + 
+                               (totais.spb_sem_letra || 0) + 
+                               (totais.telecom || 0);
+        
+        const totalMovidos = (totais.movidos || 0);
+        
+        setUpdateStatusMessage(`Processo finalizado com sucesso! Renomeados: ${totalRenomeados}, Movidos: ${totalMovidos}`);
+        alert(`Processo de atualização finalizado com sucesso!\n\nTotal de arquivos: ${result.total_arquivos || 0}\nArquivos renomeados: ${totalRenomeados}\nArquivos movidos: ${totalMovidos}`);
       } else {
-        setUpdateStatusMessage(`Erro no processamento final: ${completeResult.message}`);
+        setUpdateStatusMessage(`Erro no processamento: ${result.message || 'Falha desconhecida'}`);
+        alert(`Erro no processamento: ${result.message || 'Falha desconhecida'}`);
       }
-      
     } catch (error) {
       console.error('Erro:', error);
       setUpdateStatusMessage(`Erro ao executar o processo: ${error.message}`);
@@ -383,9 +346,6 @@ export default function AutomacaoFinancas() {
       // Mostrar indicador visual de que estamos tentando cancelar
       setUpdateStatusMessage("Cancelando...");
       
-      // Desabilitar temporariamente o botão durante o cancelamento
-      const tempDisabled = true;
-      
       // Chamar endpoint de cancelamento
       const response = await fetch(`${API_URL}/backend/files/cancel-process`, {
         method: 'POST',
@@ -399,55 +359,18 @@ export default function AutomacaoFinancas() {
       
       if (result.success) {
         setUpdateStatusMessage("Processo cancelado com sucesso!");
-        
-        // Força uma atualização imediata da interface
-        resetUpdateButton();
-        
-        // Atualizar a interface (equivalente ao atualizarInterface do código original)
-        atualizarInterfaceAposCancelamento();
-        
-        // Alertar usuário
         alert("Processo cancelado com sucesso!");
       } else {
         setUpdateStatusMessage(`Falha ao cancelar processo: ${result.message}`);
         alert(`Falha ao cancelar processo: ${result.message}`);
-        resetUpdateButton();
       }
     } catch (error) {
       console.error('Erro ao cancelar:', error);
       setUpdateStatusMessage(`Erro ao comunicar com o servidor: ${error.message}`);
       alert(`Erro ao comunicar com o servidor: ${error.message}`);
+    } finally {
       resetUpdateButton();
     }
-  };
-  
-  // Função para atualizar a interface após cancelar
-  const atualizarInterfaceAposCancelamento = () => {
-    // Resetar o status das abas para o estado inicial
-    setStatus({
-      R189: 'Aguardando processamento',
-      QPE: 'Aguardando processamento',
-      SPB: 'Aguardando processamento',
-      NFSERV: 'Aguardando processamento',
-      MUN_CODE: 'Aguardando processamento'
-    });
-    
-    // Resetar possíveis arquivos carregados
-    setFiles([]);
-    setSelectedFiles([]);
-    
-    // Recarregar a lista de arquivos (se necessário)
-    setFileListKey(prevKey => prevKey + 1);
-    
-    // Limpar qualquer mensagem de erro existente
-    setError(null);
-  };
-  
-  // Reset do botão para estado inicial - função atualizada
-  const resetUpdateButton = () => {
-    setUpdateProcessRunning(false);
-    setLoading(false);
-    setProcessingType("");
   };
   
   // Verificador de status periódico
@@ -513,23 +436,34 @@ export default function AutomacaoFinancas() {
       setProcessingType("move");
       setMoveStatusMessage("Processo iniciado...");
       
-      // Chamando o endpoint para mover arquivos
-      const response = await fetch(`${API_URL}/backend/files-repository/copy-to-repository`, {
+      console.log("Iniciando processo de movimentação de arquivos");
+      
+      // Chamando o endpoint para mover arquivos - adicionando validação de URL
+      const endpoint = `${API_URL}/backend/files-repository/copy-to-repository`;
+      console.log("Chamando endpoint:", endpoint);
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          cancelable: true
-        })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
       });
       
       if (!response.ok) {
-        throw new Error(`Erro HTTP: ${response.status}`);
+        const errorText = await response.text();
+        console.error("Erro na resposta:", response.status, errorText);
+        throw new Error(`Erro HTTP: ${response.status} - ${errorText || 'Sem detalhes do erro'}`);
       }
       
       const result = await response.json();
       
       if (result.success) {
-        setMoveStatusMessage(result.message || "Movendo arquivos...");
+        // Formatar uma mensagem com mais detalhes
+        const details = result.details || {};
+        setMoveStatusMessage(`Movendo arquivos... ${details.copied_files || 0} copiados, ${details.failed_files || 0} falhas`);
+        
+        // Não fechar o processo aqui, pois ele será monitorado pelo useEffect
       } else {
         setMoveStatusMessage(`Erro: ${result.message || 'Falha desconhecida'}`);
         resetMoveButton();
@@ -537,6 +471,7 @@ export default function AutomacaoFinancas() {
     } catch (error) {
       console.error('Erro ao iniciar movimentação:', error);
       setMoveStatusMessage(`Erro: ${error.message}`);
+      alert(`Erro ao iniciar processo de movimentação: ${error.message}`);
       resetMoveButton();
     }
   };
@@ -548,29 +483,31 @@ export default function AutomacaoFinancas() {
     if (moveProcessRunning) {
       statusCheckInterval = setInterval(async () => {
         try {
-          // Importante: Não interferir com o outro processo verificando apenas o status 
-          // do processo de movimentação, sem alterar nada se já estiver cancelado
-          if (!moveProcessRunning) {
-            clearInterval(statusCheckInterval);
-            return;
-          }
-          
+          console.log("Verificando status do processo de movimentação");
           const response = await fetch(`${API_URL}/backend/files-repository/process-status`);
           
           if (!response.ok) {
+            console.error("Erro ao verificar status:", response.status);
             return;
           }
           
           const result = await response.json();
+          console.log("Status do processo:", result);
           
-          if (result.success && result.status === "cancelled") {
-            setMoveStatusMessage("Processo cancelado pelo servidor");
-            resetMoveButton();
+          if (result.success) {
+            // Se o processo foi concluído ou cancelado no servidor
+            if (result.status === "cancelled") {
+              setMoveStatusMessage("Processo cancelado pelo servidor");
+              resetMoveButton();
+              
+              // Opcionalmente, mostrar um alerta
+              alert("O processo de movimentação foi cancelado");
+            }
           }
         } catch (error) {
           console.error('Erro ao verificar status:', error);
         }
-      }, 3000);
+      }, 3000); // Verifica a cada 3 segundos
     }
     
     return () => {
@@ -590,26 +527,35 @@ export default function AutomacaoFinancas() {
       
       setMoveStatusMessage("Cancelando...");
       
-      // Chamar endpoint de cancelamento APENAS se estivermos executando o processo de movimentação
+      // Chamar endpoint de cancelamento
       const response = await fetch(`${API_URL}/backend/files-repository/cancel-process`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
       });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Erro ao cancelar processo:", response.status, errorText);
+        throw new Error(`Erro HTTP: ${response.status} - ${errorText || 'Sem detalhes do erro'}`);
+      }
       
       const result = await response.json();
       
       if (result.success) {
         setMoveStatusMessage("Processo cancelado com sucesso!");
-        // Resetar APENAS o botão de movimentação
-        resetMoveButton();
         alert("Processo de movimentação cancelado com sucesso!");
       } else {
         setMoveStatusMessage(`Falha ao cancelar processo: ${result.message}`);
-        resetMoveButton();
+        alert(`Falha ao cancelar processo: ${result.message}`);
       }
     } catch (error) {
       console.error('Erro ao cancelar movimentação:', error);
       setMoveStatusMessage(`Erro ao comunicar com o servidor: ${error.message}`);
+      alert(`Erro ao comunicar com o servidor: ${error.message}`);
+    } finally {
       resetMoveButton();
     }
   };
