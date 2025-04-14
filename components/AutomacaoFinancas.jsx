@@ -867,47 +867,61 @@ export default function AutomacaoFinancas() {
                 Validações
               </Box>
               <Box sx={{ p: 2.5 }}>
-                {/* Remover condição validationEnabled? - sempre mostrar os botões */}
-                  <>
-                    <Button 
-                      fullWidth 
-                      variant="outlined" 
-                      sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
-                      onClick={() => handleValidation('mun_code_r189')}
-                    >
-                      1. Verificar Divergências SRV_CODE vs R189
-                    </Button>
+                <>
+                    {/* Botões de validação em nova ordem */}
                     <Button 
                       fullWidth 
                       variant="outlined" 
                       sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
                       onClick={() => handleValidation('r189')}
                     >
-                      2. Verificar Divergências R189
+                      1. Verificar Divergências R189
                     </Button>
+                    
+                    {/* Novo botão adicionado */}
+                    <Button 
+                      fullWidth 
+                      variant="outlined" 
+                      sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
+                      onClick={() => handleValidation('mun_code_r189_simple')}
+                    >
+                      2. Verificar Divergências SRV_CODE VS R189 SIMPLE
+                    </Button>
+                    
+                    <Button 
+                      fullWidth 
+                      variant="outlined" 
+                      sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
+                      onClick={() => handleValidation('mun_code_r189')}
+                    >
+                      3. Verificar Divergências SRV_CODE VS R189
+                    </Button>
+                    
                     <Button 
                       fullWidth 
                       variant="outlined" 
                       sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
                       onClick={() => handleValidation('qpe_r189')}
                     >
-                      3. Verificar Divergências NF_QPE vs R189
+                      4. Verificar Divergências NF_QPE VS R189
                     </Button>
+                    
                     <Button 
                       fullWidth 
                       variant="outlined" 
                       sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
                       onClick={() => handleValidation('spb_r189')}
                     >
-                      4. Verificar Divergências NF_SPB vs R189
+                      5. Verificar Divergências NF_SPB VS R189
                     </Button>
+                    
                     <Button 
                       fullWidth 
                       variant="outlined" 
                       sx={{ mb: 3, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
                       onClick={() => handleValidation('nfserv_r189')}
                     >
-                      5. Verificar Divergências FATURAS vs R189
+                      6. Verificar Divergências FATURAS VS R189
                     </Button>
                     
                     <Box sx={{ 
@@ -936,7 +950,7 @@ export default function AutomacaoFinancas() {
                     >
                       Consolidar Todos os Relatórios em um Único Arquivo
                     </Button>
-                  </>
+                </>
               </Box>
             </Paper>
             </Box>
