@@ -19,6 +19,45 @@ export default function AutomacaoFinancas() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [fileListKey, setFileListKey] = useState(0);
   
+  // Mapeamento de novos nomes de abas para os nomes antigos (para compatibilidade com backend)
+  const tabNameMapping = {
+    'R189': 'R189', // Mantém o mesmo
+    'NF_QPE': 'QPE', // Novo -> Antigo
+    'NF_SPB': 'SPB', // Novo -> Antigo
+    'FATURAS': 'NFSERV', // Novo -> Antigo
+    'SRV_CODE': 'MUN_CODE' // Novo -> Antigo
+  };
+  
+  // Mapeamento inverso (antigo -> novo) para uso em lógicas que precisam converter do backend para UI
+  const reverseTabNameMapping = {
+    'R189': 'R189',
+    'QPE': 'NF_QPE',
+    'SPB': 'NF_SPB',
+    'NFSERV': 'FATURAS',
+    'MUN_CODE': 'SRV_CODE'
+  };
+  
+  // Função auxiliar para obter o nome da aba para o backend
+  const getBackendTabName = (uiTabName) => {
+    return tabNameMapping[uiTabName] || uiTabName;
+  };
+  
+  // Função auxiliar para obter o nome da próxima aba na UI
+  const getNextUITabName = (currentUITabName) => {
+    const currentBackendName = tabNameMapping[currentUITabName];
+    let nextBackendName;
+    
+    switch(currentBackendName) {
+      case 'QPE': nextBackendName = 'SPB'; break;
+      case 'SPB': nextBackendName = 'NFSERV'; break;
+      case 'NFSERV': nextBackendName = 'MUN_CODE'; break;
+      case 'MUN_CODE': nextBackendName = 'R189'; break;
+      default: nextBackendName = 'QPE'; // Se for R189 ou desconhecido
+    }
+    
+    return reverseTabNameMapping[nextBackendName];
+  };
+  
   // Novo estado para controlar o tipo de processamento atual
   const [processingType, setProcessingType] = useState("");
   
@@ -26,22 +65,26 @@ export default function AutomacaoFinancas() {
   const [updateProcessRunning, setUpdateProcessRunning] = useState(false);
   const [updateStatusMessage, setUpdateStatusMessage] = useState("");
   
-  // Estado para controlar quais abas estão habilitadas
+  // Estado para controlar quais abas estão habilitadas (todas habilitadas)
   const [enabledTabs, setEnabledTabs] = useState({
-    R189: true, QPE: false, SPB: false, NFSERV: false, MUN_CODE: false
+    'R189': true, 
+    'NF_QPE': true, 
+    'NF_SPB': true, 
+    'FATURAS': true, 
+    'SRV_CODE': true
   });
   
   // Estado para controlar o status de cada etapa
   const [status, setStatus] = useState({
-    R189: 'Aguardando processamento',
-    QPE: 'Aguardando processamento',
-    SPB: 'Aguardando processamento',
-    NFSERV: 'Aguardando processamento',
-    MUN_CODE: 'Aguardando processamento'
+    'R189': 'Aguardando processamento',
+    'NF_QPE': 'Aguardando processamento',
+    'NF_SPB': 'Aguardando processamento',
+    'FATURAS': 'Aguardando processamento',
+    'SRV_CODE': 'Aguardando processamento'
   });
   
-  // Estado para controlar se os botões de validação estão habilitados
-  const [validationEnabled, setValidationEnabled] = useState(false);
+  // Estado para controlar se os botões de validação estão habilitados - agora sempre true
+  const [validationEnabled, setValidationEnabled] = useState(true);
   
   // Adicione um novo estado específico para o carregamento do botão Atualizar Arquivos
   const [updateLoading, setUpdateLoading] = useState(false);
@@ -78,24 +121,25 @@ export default function AutomacaoFinancas() {
   };
   const cancelBackToDashboard = () => setShowConfirmModal(false);
   
-  // Função para mudar de aba
+  // Função para mudar de aba (sem verificação de enabledTabs)
   const handleTabChange = (tab) => {
-    if (enabledTabs[tab]) {
       setFiles([]);
       setSelectedFiles([]);
       setError(null);
       setActiveTab(tab);
       setFileListKey(prevKey => prevKey + 1);
-    }
   };
 
-  // Função para buscar arquivos
+  // Função para buscar arquivos (COM CAMADA DE COMPATIBILIDADE)
   const handleSearchFiles = useCallback(async () => {
     try {
         setLoading(true);
         setError(null);
         
-        const response = await fetch(`${API_URL}/backend/arquivos/${activeTab}`, {
+        // Usa o nome de aba mapeado para o backend
+        const backendTabName = getBackendTabName(activeTab);
+        
+        const response = await fetch(`${API_URL}/backend/arquivos/${backendTabName}`, {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
@@ -122,7 +166,7 @@ export default function AutomacaoFinancas() {
     }
   }, [activeTab]);
 
-  // Função para processar arquivos
+  // Função para processar arquivos (COM CAMADA DE COMPATIBILIDADE)
   const handleProcessFiles = async () => {
         if (selectedFiles.length === 0) {
             setError("Por favor, selecione pelo menos um arquivo para processar.");
@@ -132,15 +176,21 @@ export default function AutomacaoFinancas() {
     try {
         setLoading(true);
       
-      // Determinar endpoint e próxima aba
-      let endpoint, nextTab;
-        switch(activeTab) {
-        case 'QPE': endpoint = `${API_URL}/backend/qpe/process`; nextTab = 'SPB'; break;
-        case 'SPB': endpoint = `${API_URL}/backend/spb/process`; nextTab = 'NFSERV'; break;
-        case 'NFSERV': endpoint = `${API_URL}/backend/nfserv/process`; nextTab = 'MUN_CODE'; break;
-        case 'MUN_CODE': endpoint = `${API_URL}/backend/mun_code/process`; nextTab = 'R189'; break;
-        default: endpoint = `${API_URL}/backend/processar/r189`; nextTab = 'QPE';
-      }
+        // Usa o nome de aba mapeado para o backend
+        const backendTabName = getBackendTabName(activeTab);
+        let endpoint, nextUITab;
+        
+        // Determinar endpoint baseado no nome do backend
+        switch(backendTabName) {
+            case 'QPE': endpoint = `${API_URL}/backend/qpe/process`; break;
+            case 'SPB': endpoint = `${API_URL}/backend/spb/process`; break;
+            case 'NFSERV': endpoint = `${API_URL}/backend/nfserv/process`; break;
+            case 'MUN_CODE': endpoint = `${API_URL}/backend/mun_code/process`; break;
+            default: endpoint = `${API_URL}/backend/processar/r189`;
+        }
+        
+        // Determinar próxima aba baseado no nome da UI
+        nextUITab = getNextUITabName(activeTab);
 
         const response = await fetch(endpoint, {
             method: 'POST',
@@ -160,16 +210,9 @@ export default function AutomacaoFinancas() {
             setSelectedFiles([]);
             setFileListKey(prevKey => prevKey + 1);
             
-            if (activeTab === 'MUN_CODE') {
-                setValidationEnabled(true);
-          setActiveTab('R189');
-            } else {
-                setEnabledTabs(prevState => ({
-                    ...prevState,
-                    [nextTab]: true
-                }));
-                setActiveTab(nextTab);
-            }
+            // Sempre muda para a próxima aba após o sucesso,
+            // já não precisamos da lógica de habilitar abas
+            setActiveTab(nextUITab);
             
             alert('Arquivos processados com sucesso!');
         } else {
@@ -186,7 +229,7 @@ export default function AutomacaoFinancas() {
     }
   };
 
-  // Função para resetar o processo
+  // Função para resetar o processo (AJUSTADA PARA NOVOS NOMES)
   const handleResetProcess = () => {
     try {
       // Resetar estados básicos de arquivos e seleção
@@ -194,22 +237,26 @@ export default function AutomacaoFinancas() {
       setSelectedFiles([]);
       setError(null);
       
-      // Resetar o status das abas
+      // Resetar o status das abas (com novos nomes)
       setStatus({
-        R189: 'Aguardando processamento',
-        QPE: 'Aguardando processamento',
-        SPB: 'Aguardando processamento',
-        NFSERV: 'Aguardando processamento',
-        MUN_CODE: 'Aguardando processamento'
+        'R189': 'Aguardando processamento',
+        'NF_QPE': 'Aguardando processamento',
+        'NF_SPB': 'Aguardando processamento',
+        'FATURAS': 'Aguardando processamento',
+        'SRV_CODE': 'Aguardando processamento'
       });
       
-      // Resetar abas habilitadas
+      // Resetar abas habilitadas (todas true)
       setEnabledTabs({
-        R189: true, QPE: false, SPB: false, NFSERV: false, MUN_CODE: false
+        'R189': true, 
+        'NF_QPE': true, 
+        'NF_SPB': true, 
+        'FATURAS': true, 
+        'SRV_CODE': true
       });
       
-      // Resetar validação e aba ativa
-      setValidationEnabled(false);
+      // Validação sempre habilitada
+      setValidationEnabled(true);
       setActiveTab('R189');
       setFileListKey(prevKey => prevKey + 1);
       
@@ -713,13 +760,14 @@ export default function AutomacaoFinancas() {
         <Box sx={{ flex: 1, p: 2.5, overflowY: 'auto' }}>
           <Paper sx={{ mb: 2.5 }}>
           <Tabs value={activeTab}>
-              {['R189', 'QPE', 'SPB', 'NFSERV', 'MUN_CODE'].map(tab => (
+              {/* Usar os novos nomes de abas na interface */}
+              {['R189', 'NF_QPE', 'NF_SPB', 'FATURAS', 'SRV_CODE'].map(tab => (
               <Tab 
                 key={tab}
                 label={tab}
                 value={tab}
                 onClick={() => handleTabChange(tab)}
-                disabled={!enabledTabs[tab]}
+                // disabled removido - todas as abas estão habilitadas
                 sx={{
                   flex: 1,
                   ...(activeTab === tab && {
@@ -819,7 +867,7 @@ export default function AutomacaoFinancas() {
                 Validações
               </Box>
               <Box sx={{ p: 2.5 }}>
-                {validationEnabled ? (
+                {/* Remover condição validationEnabled? - sempre mostrar os botões */}
                   <>
                     <Button 
                       fullWidth 
@@ -827,7 +875,7 @@ export default function AutomacaoFinancas() {
                       sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
                       onClick={() => handleValidation('mun_code_r189')}
                     >
-                      1. Verificar Divergências MUN_CODE vs R189
+                      1. Verificar Divergências SRV_CODE vs R189
                     </Button>
                     <Button 
                       fullWidth 
@@ -843,7 +891,7 @@ export default function AutomacaoFinancas() {
                       sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
                       onClick={() => handleValidation('qpe_r189')}
                     >
-                      3. Verificar Divergências QPE vs R189
+                      3. Verificar Divergências NF_QPE vs R189
                     </Button>
                     <Button 
                       fullWidth 
@@ -851,7 +899,7 @@ export default function AutomacaoFinancas() {
                       sx={{ mb: 1, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
                       onClick={() => handleValidation('spb_r189')}
                     >
-                      4. Verificar Divergências SPB vs R189
+                      4. Verificar Divergências NF_SPB vs R189
                     </Button>
                     <Button 
                       fullWidth 
@@ -859,7 +907,7 @@ export default function AutomacaoFinancas() {
                       sx={{ mb: 3, justifyContent: 'flex-start', p: 1.5, textAlign: 'left' }}
                       onClick={() => handleValidation('nfserv_r189')}
                     >
-                      5. Verificar Divergências NFSERV vs R189
+                      5. Verificar Divergências FATURAS vs R189
                     </Button>
                     
                     <Box sx={{ 
@@ -889,11 +937,6 @@ export default function AutomacaoFinancas() {
                       Consolidar Todos os Relatórios em um Único Arquivo
                     </Button>
                   </>
-                ) : (
-                  <Typography sx={{ p: 2, textAlign: 'center' }}>
-                    Complete o processamento de todos os arquivos para habilitar as validações.
-                  </Typography>
-                )}
               </Box>
             </Paper>
             </Box>
@@ -909,6 +952,7 @@ export default function AutomacaoFinancas() {
         fontSize: '0.9rem',
         color: '#666'
       }}>
+        {/* Exibir status com os novos nomes */}
         {Object.entries(status).map(([key, value]) => (
           <Box key={key} sx={{ display: 'flex', alignItems: 'center' }}>
             Status {key}: {value}
