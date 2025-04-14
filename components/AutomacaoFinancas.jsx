@@ -286,6 +286,14 @@ export default function AutomacaoFinancas() {
     }
   };
   
+  // Função para resetar o botão e estados relacionados
+  const resetUpdateButton = () => {
+    setUpdateProcessRunning(false);
+    setLoading(false); // Garante que o loading geral pare
+    setProcessingType(""); // Limpa o tipo de processamento
+    setUpdateStatusMessage(""); // Limpa a mensagem de status
+  };
+
   // Inicia o processo de atualização (COM LÓGICA DE RETENTATIVA REAL NA ETAPA 1)
   const startUpdateProcess = async () => {
     // Contador local para retentativas da Etapa 1
@@ -470,9 +478,8 @@ export default function AutomacaoFinancas() {
       resetUpdateButton();
 
 
-    } catch (error) { // Catch externo para erros não tratados
+    } catch (error) {
       console.error('Erro geral no processo de atualização:', error);
-      // Garante que a mensagem de erro seja exibida
       if (!updateStatusMessage || (!updateStatusMessage.includes("cancelado") && !updateStatusMessage.includes("interrompido"))) {
           setUpdateStatusMessage(`Erro: ${error.message}`);
           alert(`Erro: ${error.message}`);
@@ -481,73 +488,55 @@ export default function AutomacaoFinancas() {
     }
   };
   
-  // Cancela o processo em andamento (ATUALIZADA para cancelar ambos)
+  // Cancela o processo em andamento (MODIFICADA)
   const cancelUpdateProcess = async () => {
+    // ATUALIZA UI IMEDIATAMENTE
+    setUpdateStatusMessage("Solicitando cancelamento..."); // Mensagem inicial
+    resetUpdateButton(); // << CHAMA A FUNÇÃO RESET AQUI
+    
+    console.log("Enviando solicitações de cancelamento para o backend...");
+    
     try {
-      setUpdateStatusMessage("Cancelando processo...");
-      console.log("Enviando solicitação de cancelamento");
-      
-      // Primeiro, tentamos cancelar o processo rename-clean
-      const cancelRenameResponse = await fetch(`${API_URL}/backend/files/cancel-process`, {
+      // Envia os pedidos de cancelamento em paralelo
+      const cancelFilesPromise = fetch(`${API_URL}/backend/files/cancel-process`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
       });
       
-      let renameResult;
-      if (cancelRenameResponse.ok) {
-        renameResult = await cancelRenameResponse.json();
-        console.log("Resposta do cancelamento rename-clean:", renameResult);
-      } else {
-        console.warn("Falha ao cancelar rename-clean:", cancelRenameResponse.status);
-      }
-      
-      // Em seguida, tentamos cancelar o processo copy-to-repository
-      const cancelCopyResponse = await fetch(`${API_URL}/backend/files-repository/cancel-process`, {
+      const cancelRepoPromise = fetch(`${API_URL}/backend/files-repository/cancel-process`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
       });
-      
-      let copyResult;
-      if (cancelCopyResponse.ok) {
-        copyResult = await cancelCopyResponse.json();
-        console.log("Resposta do cancelamento copy-to-repository:", copyResult);
-      } else {
-        console.warn("Falha ao cancelar copy-to-repository:", cancelCopyResponse.status);
-      }
-      
-      // Se pelo menos um dos cancelamentos teve sucesso
-      if ((renameResult && renameResult.success) || (copyResult && copyResult.success)) {
-        setUpdateStatusMessage("Processo cancelado com sucesso!");
-        alert("Processo cancelado com sucesso!");
-      } else {
-        setUpdateStatusMessage("Falha ao cancelar processos. Tente novamente ou aguarde a conclusão.");
-        alert("Falha ao cancelar processos. Tente novamente ou aguarde a conclusão.");
-      }
-      
-      // Sempre resetar o botão após tentativa de cancelamento
-      resetUpdateButton();
-      
-    } catch (error) {
-      console.error('Erro ao cancelar processos:', error);
-      setUpdateStatusMessage(`Erro ao comunicar com o servidor: ${error.message}`);
-      alert(`Erro ao comunicar com o servidor: ${error.message}`);
-      resetUpdateButton();
-    }
-  };
 
-  // Reset do botão definido fora do useEffect
-  const resetUpdateButton = () => {
-    setUpdateProcessRunning(false);
-    setLoading(false);
-    setProcessingType("");
-    // Limpar a mensagem de status ao resetar
-    setUpdateStatusMessage(""); 
+      // Espera ambos os pedidos serem enviados (não necessariamente concluídos)
+      // Usamos allSettled para que um erro em um não impeça o log do outro
+      const results = await Promise.allSettled([cancelFilesPromise, cancelRepoPromise]);
+      
+      console.log("Resultados do envio das solicitações de cancelamento:", results);
+      
+      // Verifica se houve erro ao *enviar* as solicitações
+      const failedRequests = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok));
+      
+      if (failedRequests.length > 0) {
+        console.warn("Falha ao enviar uma ou mais solicitações de cancelamento:", failedRequests);
+        // Mantém a mensagem de solicitação, mas avisa que o envio falhou
+        setUpdateStatusMessage("Falha ao enviar solicitação de cancelamento para o backend.");
+        alert("Falha ao enviar solicitação de cancelamento para o backend. O processo pode continuar.");
+      } else {
+        // Informa que a solicitação foi enviada com sucesso
+        // A mensagem de status já foi limpa pelo resetUpdateButton, podemos colocar uma nova se quisermos
+        // setUpdateStatusMessage("Cancelamento solicitado."); // Opcional: redefinir msg após sucesso
+        alert("Cancelamento solicitado. O processo será interrompido em breve.");
+      }
+
+    } catch (error) { // Captura erros na lógica do Promise.allSettled ou outros erros inesperados
+      console.error('Erro inesperado ao tentar cancelar:', error);
+      setUpdateStatusMessage(`Erro ao solicitar cancelamento: ${error.message}`);
+      alert(`Erro ao solicitar cancelamento: ${error.message}`);
+       // Garante que o botão está resetado mesmo em caso de erro aqui
+       resetUpdateButton(); 
+    }
+    // O botão e os estados já foram resetados no início da função
   };
 
   // Componente FileList
@@ -1019,7 +1008,6 @@ export default function AutomacaoFinancas() {
                   {/* Submenu de Orange */}
                   {selectedCompany === company.id && company.id === 'orange' && (
                     <Box sx={{ pl: 4 }}>
-                      {/* Botão Atualizar Arquivos com mensagem de status */}
                       <Box sx={{ position: 'relative' }}>
                         <Box 
                           sx={{ 
@@ -1027,44 +1015,46 @@ export default function AutomacaoFinancas() {
                             alignItems: 'center',
                             py: 1.2,
                             px: 2,
-                            // Lógica de cursor/hover ajustada para updateProcessRunning
-                            cursor: updateProcessRunning ? 'default' : 'pointer',
+                            cursor: 'pointer', // Sempre pointer agora, a lógica está no onClick
                             transition: 'background-color 0.2s',
-                            '&:hover': updateProcessRunning ? {} : { bgcolor: 'rgba(255, 255, 255, 0.1)' },
+                            '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' }, // Hover padrão
                             borderLeft: '2px solid rgba(255, 255, 255, 0.3)',
-                            ...(updateProcessRunning && {
-                              bgcolor: 'rgba(220, 53, 69, 0.3)', // Vermelho mais escuro quando processo em andamento
-                            })
+                            // Cor de fundo baseada se está rodando (indica cancelamento)
+                            bgcolor: updateProcessRunning ? 'rgba(220, 53, 69, 0.3)' : 'transparent', 
                           }}
-                          onClick={handleUpdateFiles} // Agora sempre chama handleUpdateFiles
+                          onClick={handleUpdateFiles} // Chama a função que decide entre iniciar ou cancelar
                         >
                           <Box sx={{ 
                             width: 6, 
                             height: 6, 
                             borderRadius: '50%', 
                             mr: 1.5, 
+                            // Cor do ponto baseada se está rodando
                             bgcolor: updateProcessRunning ? 'rgba(220, 53, 69, 0.8)' : 'rgba(255, 255, 255, 0.7)' 
                           }} />
                           <Typography sx={{ fontSize: '0.9rem' }}>
-                            {updateStatusMessage && updateStatusMessage.startsWith("Cancelando...") 
-                              ? 'Cancelando...' 
-                              : updateProcessRunning 
-                                ? 'Cancelar Atualização' 
-                                : 'Atualizar Arquivos'}
+                            {/* Texto do botão: Cancelar se estiver rodando, Atualizar senão */}
+                            {updateProcessRunning ? 'Cancelar Atualização' : 'Atualizar Arquivos'}
                           </Typography>
-                          {/* Indicador de loading ajustado para updateProcessRunning */}
-                          {updateProcessRunning && (
+                          {/* Loading só aparece se loading=true E updateProcessRunning=true */}
+                          {loading && updateProcessRunning && (
                             <CircularProgress size={14} sx={{ ml: 1, color: 'white' }} />
                           )}
                         </Box>
+                         {/* Mostra a mensagem de status ABAIXO do botão */}
+                         {updateStatusMessage && (
+                           <Typography sx={{ 
+                             fontSize: '0.75rem', 
+                             color: 'rgba(255, 255, 255, 0.8)', 
+                             pl: 2, // Alinha com o texto do botão
+                             pt: 0.5 
+                           }}>
+                             {updateStatusMessage}
+                           </Typography>
+                         )}
                       </Box>
                       
-                      {/* REMOVER O BOTÃO MOVER ARQUIVOS */}
-                      {/* 
-                      <Box sx={{ position: 'relative', mt: 1 }}>
-                        // ... JSX do botão Mover Arquivos ...
-                      </Box> 
-                      */} {/* REMOVIDO */}
+                      {/* REMOVER O BOTÃO MOVER ARQUIVOS (já removido) */}
                       
                       {/* Você pode adicionar outros submenus de Orange aqui */}
                     </Box>
