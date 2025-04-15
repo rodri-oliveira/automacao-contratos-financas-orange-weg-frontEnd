@@ -320,15 +320,29 @@ export default function AutomacaoFinancas() {
     }
   };
 
-  // Função para iniciar ou cancelar o processo de atualização (ATUALIZADA)
+  // Função para iniciar o processo de atualização (SIMPLIFICADA - SEM CANCELAMENTO)
   const handleUpdateFiles = async () => {
+    // Verifica se já há um processo em andamento
     if (updateProcessRunning) {
-      // Se o processo está em andamento, tenta cancelá-lo
-      await cancelUpdateProcess();
-    } else {
-      // Se não há processo em andamento, inicia um
-      if (window.confirm('Iniciar o processo completo de atualização (inclui renomear, organizar e copiar para repositório)?')) {
+      alert('Já existe um processo em andamento. Aguarde a conclusão.');
+      return;
+    }
+    
+    // Se não há processo em andamento, inicia um
+    if (window.confirm('Iniciar o processo completo de atualização (inclui renomear, organizar e copiar para repositório)?\n\nAtenção: Uma vez iniciado, o processo não poderá ser cancelado e você deverá aguardar a conclusão.')) {
+      // Define que um processo está em andamento
+      setUpdateProcessRunning(true);
+      setProcessingType("update");
+      setLoading(true);
+      setUpdateStatusMessage("Iniciando processo de atualização...");
+      
+      try {
         await startUpdateProcess();
+      } catch (error) {
+        console.error("Erro ao iniciar o processo de atualização:", error);
+        setUpdateStatusMessage(`Erro: ${error.message}`);
+        alert(`Erro: ${error.message}`);
+        resetUpdateButton();
       }
     }
   };
@@ -339,6 +353,75 @@ export default function AutomacaoFinancas() {
     setLoading(false); // Garante que o loading geral pare
     setProcessingType(""); // Limpa o tipo de processamento
     setUpdateStatusMessage(""); // Limpa a mensagem de status
+  };
+  
+  // Função para verificar e validar emails Orange
+  const handleOrangeEmailCheck = async () => {
+    try {
+      setLoading(true);
+      setProcessingType("email");
+      setUpdateStatusMessage("Verificando notificações de email Orange...");
+      
+      // Primeiro, verifica os emails disponíveis
+      const checkResponse = await fetch(`${API_URL}/backend/check-orange-email-notifications`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      
+      if (!checkResponse.ok) {
+        throw new Error(`Erro ao verificar emails (Status: ${checkResponse.status})`);
+      }
+      
+      const checkResult = await checkResponse.json();
+      
+      if (!checkResult.success) {
+        throw new Error(checkResult.message || 'Falha ao verificar emails');
+      }
+      
+      // Se a verificação foi bem-sucedida, pergunta se deseja validar
+      const emailCount = checkResult.email_count || 0;
+      const emailDetails = checkResult.details || 'Nenhum detalhe disponível';
+      
+      setUpdateStatusMessage(`Encontrados ${emailCount} emails Orange`);
+      
+      if (emailCount > 0 && window.confirm(`Encontrados ${emailCount} emails Orange.\n\nDetalhes: ${emailDetails}\n\nDeseja validar estes emails?`)) {
+        // Chama o endpoint de validação
+        setUpdateStatusMessage("Validando emails Orange...");
+        
+        const validateResponse = await fetch(`${API_URL}/backend/validate-orange-email-notifications`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json' 
+          }
+        });
+        
+        if (!validateResponse.ok) {
+          throw new Error(`Erro ao validar emails (Status: ${validateResponse.status})`);
+        }
+        
+        const validateResult = await validateResponse.json();
+        
+        if (!validateResult.success) {
+          throw new Error(validateResult.message || 'Falha ao validar emails');
+        }
+        
+        setUpdateStatusMessage(`Emails Orange validados com sucesso: ${validateResult.message || 'Operação concluída'}`);
+        alert(`Emails Orange validados com sucesso: ${validateResult.message || 'Operação concluída'}`);
+      } else if (emailCount === 0) {
+        setUpdateStatusMessage("Nenhum email Orange encontrado para validação");
+        alert("Nenhum email Orange encontrado para validação");
+      } else {
+        setUpdateStatusMessage("Validação de emails Orange cancelada pelo usuário");
+      }
+    } catch (error) {
+      console.error("Erro ao processar emails Orange:", error);
+      setUpdateStatusMessage(`Erro: ${error.message}`);
+      alert(`Erro ao processar emails Orange: ${error.message}`);
+    } finally {
+      setLoading(false);
+      setProcessingType("");
+    }
   };
 
   // Inicia o processo de atualização (COM LÓGICA DE RETENTATIVA REAL NA ETAPA 1)
@@ -535,56 +618,8 @@ export default function AutomacaoFinancas() {
     }
   };
   
-  // Cancela o processo em andamento (MODIFICADA)
-  const cancelUpdateProcess = async () => {
-    // ATUALIZA UI IMEDIATAMENTE
-    setUpdateStatusMessage("Solicitando cancelamento..."); // Mensagem inicial
-    resetUpdateButton(); // << CHAMA A FUNÇÃO RESET AQUI
-    
-    console.log("Enviando solicitações de cancelamento para o backend...");
-    
-    try {
-      // Envia os pedidos de cancelamento em paralelo
-      const cancelFilesPromise = fetch(`${API_URL}/backend/files/cancel-process`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
-      });
-      
-      const cancelRepoPromise = fetch(`${API_URL}/backend/files-repository/cancel-process`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
-      });
-
-      // Espera ambos os pedidos serem enviados (não necessariamente concluídos)
-      // Usamos allSettled para que um erro em um não impeça o log do outro
-      const results = await Promise.allSettled([cancelFilesPromise, cancelRepoPromise]);
-      
-      console.log("Resultados do envio das solicitações de cancelamento:", results);
-      
-      // Verifica se houve erro ao *enviar* as solicitações
-      const failedRequests = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok));
-      
-      if (failedRequests.length > 0) {
-        console.warn("Falha ao enviar uma ou mais solicitações de cancelamento:", failedRequests);
-        // Mantém a mensagem de solicitação, mas avisa que o envio falhou
-        setUpdateStatusMessage("Falha ao enviar solicitação de cancelamento para o backend.");
-        alert("Falha ao enviar solicitação de cancelamento para o backend. O processo pode continuar.");
-      } else {
-        // Informa que a solicitação foi enviada com sucesso
-        // A mensagem de status já foi limpa pelo resetUpdateButton, podemos colocar uma nova se quisermos
-        // setUpdateStatusMessage("Cancelamento solicitado."); // Opcional: redefinir msg após sucesso
-        alert("Cancelamento solicitado. O processo será interrompido em breve.");
-      }
-
-    } catch (error) { // Captura erros na lógica do Promise.allSettled ou outros erros inesperados
-      console.error('Erro inesperado ao tentar cancelar:', error);
-      setUpdateStatusMessage(`Erro ao solicitar cancelamento: ${error.message}`);
-      alert(`Erro ao solicitar cancelamento: ${error.message}`);
-       // Garante que o botão está resetado mesmo em caso de erro aqui
-       resetUpdateButton(); 
-    }
-    // O botão e os estados já foram resetados no início da função
-  };
+  // Função de cancelamento removida conforme solicitado
+  // Não será mais possível cancelar o processo após iniciado
 
   // Componente FileList
   const FileList = () => {
@@ -1077,22 +1112,22 @@ export default function AutomacaoFinancas() {
                             transition: 'background-color 0.2s',
                             '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' }, // Hover padrão
                             borderLeft: '2px solid rgba(255, 255, 255, 0.3)',
-                            // Cor de fundo baseada se está rodando (indica cancelamento)
-                            bgcolor: updateProcessRunning ? 'rgba(220, 53, 69, 0.3)' : 'transparent', 
+                            // Não mostra mais cor de fundo diferente para cancelamento
+                            bgcolor: updateProcessRunning ? 'rgba(0, 87, 157, 0.3)' : 'transparent', 
                           }}
-                          onClick={handleUpdateFiles} // Chama a função que decide entre iniciar ou cancelar
+                          onClick={!updateProcessRunning ? handleUpdateFiles : null} // Só permite clicar se não estiver rodando
                         >
                           <Box sx={{ 
                             width: 6, 
                             height: 6, 
                             borderRadius: '50%', 
                             mr: 1.5, 
-                            // Cor do ponto baseada se está rodando
-                            bgcolor: updateProcessRunning ? 'rgba(220, 53, 69, 0.8)' : 'rgba(255, 255, 255, 0.7)' 
+                            // Cor do ponto sempre igual, não indica mais cancelamento
+                            bgcolor: 'rgba(255, 255, 255, 0.7)' 
                           }} />
                           <Typography sx={{ fontSize: '0.9rem' }}>
-                            {/* Texto do botão: Cancelar se estiver rodando, Atualizar senão */}
-                            {updateProcessRunning ? 'Cancelar Atualização' : 'Atualizar Arquivos'}
+                            {/* Texto do botão sempre mostra Atualizar Arquivos */}
+                            Atualizar Arquivos
                           </Typography>
                           {/* Loading só aparece se loading=true E updateProcessRunning=true */}
                           {loading && updateProcessRunning && (
