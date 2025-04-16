@@ -378,13 +378,12 @@ export default function AutomacaoFinancas() {
         throw new Error(checkResult.message || 'Falha ao verificar emails');
       }
       
-      // Se a verificação foi bem-sucedida, pergunta se deseja validar
+      // Se a verificação foi bem-sucedida, pergunta se deseja mover os emails
       const emailCount = checkResult.email_count || 0;
-      const emailDetails = checkResult.details || 'Nenhum detalhe disponível';
       
       setUpdateStatusMessage(`Encontrados ${emailCount} emails Orange`);
       
-      if (emailCount > 0 && window.confirm(`Encontrados ${emailCount} emails Orange.\n\nDetalhes: ${emailDetails}\n\nDeseja validar estes emails?`)) {
+      if (emailCount > 0 && window.confirm(`Encontrados ${emailCount} emails Orange.\n\nDeseja mover os emails para a pasta /ENTRADA no SharePoint?`)) {
         // Chama o endpoint de validação
         setUpdateStatusMessage("Validando emails Orange...");
         
@@ -407,12 +406,10 @@ export default function AutomacaoFinancas() {
         }
         
         setUpdateStatusMessage(`Emails Orange validados com sucesso: ${validateResult.message || 'Operação concluída'}`);
-        alert(`Emails Orange validados com sucesso: ${validateResult.message || 'Operação concluída'}`);
       } else if (emailCount === 0) {
         setUpdateStatusMessage("Nenhum email Orange encontrado para validação");
-        alert("Nenhum email Orange encontrado para validação");
       } else {
-        setUpdateStatusMessage("Validação de emails Orange cancelada pelo usuário");
+        // Não exibe mensagem quando o usuário cancela
       }
     } catch (error) {
       console.error("Erro ao processar emails Orange:", error);
