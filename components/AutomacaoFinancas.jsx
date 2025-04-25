@@ -362,59 +362,30 @@ export default function AutomacaoFinancas() {
       setProcessingType("email");
       setUpdateStatusMessage("Verificando notificações de email Orange...");
       
-      // Primeiro, verifica os emails disponíveis
-      const checkResponse = await fetch(`${API_URL}/backend/check-orange-email-notifications`, {
+      const response = await fetch(`${API_URL}/backend/check-orange-email-notifications`, {
         method: 'GET',
         headers: { 'Accept': 'application/json' }
       });
       
-      if (!checkResponse.ok) {
-        throw new Error(`Erro ao verificar emails (Status: ${checkResponse.status})`);
+      if (!response.ok) {
+        throw new Error(`Status: ${response.status}`);
       }
       
-      const checkResult = await checkResponse.json();
+      const { email_count: count } = await response.json();
       
-      if (!checkResult.success) {
-        throw new Error(checkResult.message || 'Falha ao verificar emails');
+      if (typeof count !== 'number') {
+        throw new Error('Resposta inválida do servidor');
       }
       
-      // Se a verificação foi bem-sucedida, pergunta se deseja mover os emails
-      const emailCount = checkResult.email_count || 0;
-      
-      setUpdateStatusMessage(`Encontrados ${emailCount} emails Orange`);
-      
-      if (emailCount > 0 && window.confirm(`Encontrados ${emailCount} emails Orange.\n\nDeseja mover os emails para a pasta /ENTRADA no SharePoint?`)) {
-        // Chama o endpoint de validação
-        setUpdateStatusMessage("Validando emails Orange...");
-        
-        const validateResponse = await fetch(`${API_URL}/backend/validate-orange-email-notifications`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json' 
-          }
-        });
-        
-        if (!validateResponse.ok) {
-          throw new Error(`Erro ao validar emails (Status: ${validateResponse.status})`);
-        }
-        
-        const validateResult = await validateResponse.json();
-        
-        if (!validateResult.success) {
-          throw new Error(validateResult.message || 'Falha ao validar emails');
-        }
-        
-        setUpdateStatusMessage(`Emails Orange validados com sucesso: ${validateResult.message || 'Operação concluída'}`);
-      } else if (emailCount === 0) {
-        setUpdateStatusMessage("Nenhum email Orange encontrado para validação");
+      if (count === 0) {
+        setUpdateStatusMessage('Nenhum email Orange encontrado');
       } else {
-        // Não exibe mensagem quando o usuário cancela
+        setUpdateStatusMessage(`Encontrados ${count} emails Orange`);
       }
     } catch (error) {
-      console.error("Erro ao processar emails Orange:", error);
-      setUpdateStatusMessage(`Erro: ${error.message}`);
-      alert(`Erro ao processar emails Orange: ${error.message}`);
+      const msg = error instanceof Error ? error.message : String(error);
+      setUpdateStatusMessage(`Erro ao verificar emails Orange: ${msg}`);
+      console.error('Erro ao verificar emails Orange:', error);
     } finally {
       setLoading(false);
       setProcessingType("");
