@@ -329,7 +329,7 @@ export default function AutomacaoFinancas() {
     }
     
     // Se não há processo em andamento, inicia um
-    if (window.confirm('Iniciar o processo completo de atualização (inclui renomear, organizar e copiar para repositório)?\n\nAtenção: Uma vez iniciado, o processo não poderá ser cancelado e você deverá aguardar a conclusão.')) {
+    if (window.confirm('Iniciar o processo completo de atualização (inclui verificar emails, renomear, organizar e copiar para repositório)?\n\nAtenção: Uma vez iniciado, o processo não poderá ser cancelado e você deverá aguardar a conclusão.')) {
       // Define que um processo está em andamento
       setUpdateProcessRunning(true);
       setProcessingType("update");
@@ -394,11 +394,11 @@ export default function AutomacaoFinancas() {
 
   // Inicia o processo de atualização (COM LÓGICA DE RETENTATIVA REAL NA ETAPA 1)
   const startUpdateProcess = async () => {
-    // Contador local para retentativas da Etapa 1
-    let etapa1RetryCount = 0;
-    const MAX_ETAPA1_RETRIES = 3;
-    let etapa1Success = false; // Flag para saber se a etapa 1 foi concluída com sucesso
-    let finalRenameResult = null; // Para guardar o resultado final da Etapa 1 bem-sucedida
+    // Contador local para retentativas da Etapa 3 (antiga Etapa 1)
+    let etapa3RetryCount = 0;
+    const MAX_ETAPA3_RETRIES = 3;
+    let etapa3Success = false; // Flag para saber se a etapa 3 foi concluída com sucesso
+    let finalRenameResult = null; // Para guardar o resultado final da Etapa 3 bem-sucedida
 
     try {
       // Configurar estados iniciais
@@ -407,9 +407,50 @@ export default function AutomacaoFinancas() {
       setProcessingType("update");
       setUpdateStatusMessage("Iniciando processo de atualização...");
 
-      // ETAPA 0: Resetar (limpar pastas intermediárias)
-      console.log("ETAPA 0: Resetando processo...");
-      setUpdateStatusMessage("ETAPA 0: Limpando pastas...");
+      // ETAPA 1: Verificar emails Orange (Novo - integrado do botão Get Email)
+      console.log("ETAPA 1: Verificando notificações de email Orange...");
+      setUpdateStatusMessage("ETAPA 1: Verificando notificações de email Orange...");
+      
+      try {
+        const emailResponse = await fetch(`${API_URL}/backend/check-orange-email-notifications`, {
+          method: 'GET',
+          headers: { 
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        });
+        
+        if (!emailResponse.ok) {
+          throw new Error(`Status: ${emailResponse.status}`);
+        }
+        
+        const emailResult = await emailResponse.json();
+        
+        if (typeof emailResult.email_count !== 'number') {
+          throw new Error('Resposta inválida do servidor ao verificar emails');
+        }
+        
+        const emailCount = emailResult.email_count;
+        
+        if (emailCount === 0) {
+          console.log("ETAPA 1: Nenhum email Orange encontrado. Continuando...");
+          setUpdateStatusMessage("ETAPA 1: Nenhum email Orange encontrado. Continuando com próxima etapa...");
+        } else {
+          console.log(`ETAPA 1: Encontrados ${emailCount} emails Orange. Processando...`);
+          setUpdateStatusMessage(`ETAPA 1: Processando ${emailCount} emails Orange...`);
+          // Aqui poderia ter uma lógica adicional para processar os emails, se necessário
+        }
+      } catch (emailError) {
+        console.error("Erro na ETAPA 1 (Verificação de Emails):", emailError);
+        setUpdateStatusMessage(`ETAPA 1: Aviso - Erro ao verificar emails: ${emailError.message}. Continuando com próxima etapa...`);
+        // Decidimos continuar mesmo com erro na verificação de emails
+      }
+
+      // ETAPA 2: Resetar (limpar pastas intermediárias) - Era a antiga ETAPA 0
+      console.log("ETAPA 2: Resetando processo...");
+      setUpdateStatusMessage("ETAPA 2: Limpando pastas...");
       try {
       const resetResponse = await fetch(`${API_URL}/backend/files/reset-process`, {
         method: 'POST',
@@ -420,31 +461,31 @@ export default function AutomacaoFinancas() {
       } else {
         const resetResult = await resetResponse.json();
               if (!resetResult.success) console.warn(`Aviso: Reset não foi bem sucedido (${resetResult.message || 'sem detalhes'}). Continuando...`);
-              else console.log("ETAPA 0: Reset concluído.");
+              else console.log("ETAPA 2: Reset concluído.");
           }
       } catch (resetError) {
-           console.error("Erro na ETAPA 0 (Reset):", resetError);
+           console.error("Erro na ETAPA 2 (Reset):", resetError);
            // Decide se quer parar ou continuar mesmo se o reset falhar
            // Continuar pode ser aceitável se o reset não for sempre necessário
            // throw new Error("Falha crítica ao resetar o processo."); // Descomente para parar
       }
 
 
-      // --- INÍCIO DO LOOP DE RETENTATIVA PARA ETAPA 1 ---
-      while (etapa1RetryCount < MAX_ETAPA1_RETRIES && !etapa1Success) {
-        const currentAttempt = etapa1RetryCount + 1;
-        console.log(`ETAPA 1: Iniciando tentativa ${currentAttempt}/${MAX_ETAPA1_RETRIES}...`);
-        setUpdateStatusMessage(`ETAPA 1 (Tentativa ${currentAttempt}/${MAX_ETAPA1_RETRIES}): Renomeando e organizando...`);
+      // --- INÍCIO DO LOOP DE RETENTATIVA PARA ETAPA 3 (antiga ETAPA 1) ---
+      while (etapa3RetryCount < MAX_ETAPA3_RETRIES && !etapa3Success) {
+        const currentAttempt = etapa3RetryCount + 1;
+        console.log(`ETAPA 3: Iniciando tentativa ${currentAttempt}/${MAX_ETAPA3_RETRIES}...`);
+        setUpdateStatusMessage(`ETAPA 3 (Tentativa ${currentAttempt}/${MAX_ETAPA3_RETRIES}): Renomeando e organizando...`);
 
         try {
-          // 1. Executar Rename/Clean
+          // 3. Executar Rename/Clean
       const renameResponse = await fetch(`${API_URL}/backend/files/rename-clean`, {
         method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
       });
 
       if (!renameResponse.ok) {
-            throw new Error(`Erro HTTP na ETAPA 1 (Tentativa ${currentAttempt}): ${renameResponse.status}`);
+            throw new Error(`Erro HTTP na ETAPA 3 (Tentativa ${currentAttempt}): ${renameResponse.status}`);
       }
 
       const renameResult = await renameResponse.json();
@@ -452,17 +493,17 @@ export default function AutomacaoFinancas() {
 
       if (!renameResult.success) {
         if (renameResult.cancelled) {
-              setUpdateStatusMessage(`Processo cancelado durante ETAPA 1 (Tentativa ${currentAttempt})`);
+              setUpdateStatusMessage(`Processo cancelado durante ETAPA 3 (Tentativa ${currentAttempt})`);
           resetUpdateButton();
               return; // Sai da função inteira
             }
-            throw new Error(`Erro na ETAPA 1 (Tentativa ${currentAttempt}): ${renameResult.message || 'Falha desconhecida'}`);
+            throw new Error(`Erro na ETAPA 3 (Tentativa ${currentAttempt}): ${renameResult.message || 'Falha desconhecida'}`);
           }
-          console.log(`ETAPA 1 (Tentativa ${currentAttempt}) - Rename/Clean executado.`);
+          console.log(`ETAPA 3 (Tentativa ${currentAttempt}) - Rename/Clean executado.`);
 
-          // 2. Verificar Pasta ENTRADA com o novo endpoint (COM URL CORRIGIDA E HEADERS DE CACHE)
-          console.log(`ETAPA 1 (Tentativa ${currentAttempt}): Verificando pasta ENTRADA...`);
-          setUpdateStatusMessage(`ETAPA 1 (Tentativa ${currentAttempt}): Verificando arquivos restantes...`);
+          // Verificar Pasta ENTRADA com o novo endpoint (COM URL CORRIGIDA E HEADERS DE CACHE)
+          console.log(`ETAPA 3 (Tentativa ${currentAttempt}): Verificando pasta ENTRADA...`);
+          setUpdateStatusMessage(`ETAPA 3 (Tentativa ${currentAttempt}): Verificando arquivos restantes...`);
           
           const checkEndpointUrl = `${API_URL}/backend/files/check-entrada`;
           console.log("Chamando endpoint de verificação:", checkEndpointUrl); 
@@ -492,48 +533,48 @@ export default function AutomacaoFinancas() {
 
           // --- Lógica de Retentativa Baseada no /check-entrada ---
           if (checkResult.total_files === 0 || (checkResult.files && checkResult.files.length === 0)) {
-            console.log(`ETAPA 1 (Tentativa ${currentAttempt}) bem-sucedida. Pasta ENTRADA está vazia.`);
-            etapa1Success = true; // Marca sucesso para sair do loop
+            console.log(`ETAPA 3 (Tentativa ${currentAttempt}) bem-sucedida. Pasta ENTRADA está vazia.`);
+            etapa3Success = true; // Marca sucesso para sair do loop
           } else {
             // Arquivos permaneceram
             const remainingCount = checkResult.total_files || checkResult.files?.length || 'N/A';
             console.warn(`Arquivos restantes na pasta ENTRADA: ${remainingCount}`);
-            etapa1RetryCount++; // Incrementa contador ANTES de perguntar
+            etapa3RetryCount++; // Incrementa contador ANTES de perguntar
 
-            if (etapa1RetryCount < MAX_ETAPA1_RETRIES) {
+            if (etapa3RetryCount < MAX_ETAPA3_RETRIES) {
               const userWantsRetry = window.confirm(
-                `ETAPA 1 (Tentativa ${currentAttempt}) concluída, mas ${remainingCount} arquivo(s) permaneceram na pasta ENTRADA.\n\nTodos os arquivos precisam ser processados.\n\nDeseja tentar novamente (${etapa1RetryCount + 1}/${MAX_ETAPA1_RETRIES})?`
+                `ETAPA 3 (Tentativa ${currentAttempt}) concluída, mas ${remainingCount} arquivo(s) permaneceram na pasta ENTRADA.\n\nTodos os arquivos precisam ser processados.\n\nDeseja tentar novamente (${etapa3RetryCount + 1}/${MAX_ETAPA3_RETRIES})?`
               );
               if (!userWantsRetry) {
-                throw new Error(`Processo interrompido pelo usuário. ${remainingCount} arquivo(s) não processados na ETAPA 1.`);
+                throw new Error(`Processo interrompido pelo usuário. ${remainingCount} arquivo(s) não processados na ETAPA 3.`);
               }
               // Se userWantsRetry for true, o loop continua
             } else {
               // Atingiu o máximo de retentativas
-              throw new Error(`ETAPA 1 falhou após ${MAX_ETAPA1_RETRIES} tentativas. ${remainingCount} arquivo(s) ainda permanecem na pasta ENTRADA. Verifique os logs do backend ou os arquivos manualmente.`);
+              throw new Error(`ETAPA 3 falhou após ${MAX_ETAPA3_RETRIES} tentativas. ${remainingCount} arquivo(s) ainda permanecem na pasta ENTRADA. Verifique os logs do backend ou os arquivos manualmente.`);
             }
           }
 
         } catch (innerError) {
-          // Erro durante uma tentativa específica da ETAPA 1 (seja no rename ou no check)
-          console.error(`Erro na Tentativa ${currentAttempt} da ETAPA 1:`, innerError);
+          // Erro durante uma tentativa específica da ETAPA 3 (seja no rename ou no check)
+          console.error(`Erro na Tentativa ${currentAttempt} da ETAPA 3:`, innerError);
           // Parar direto em caso de erro na tentativa.
           throw innerError; // Re-lança o erro para ser pego pelo catch externo
         }
-      } // --- FIM DO LOOP DE RETENTATIVA PARA ETAPA 1 ---
+      } // --- FIM DO LOOP DE RETENTATIVA PARA ETAPA 3 ---
 
       // Se saiu do loop sem sucesso (ex: usuário cancelou retentativa ou erro)
-      if (!etapa1Success) {
-         console.log("ETAPA 1 não concluída com sucesso após retentativas.");
+      if (!etapa3Success) {
+         console.log("ETAPA 3 não concluída com sucesso após retentativas.");
          // A mensagem de erro já foi setada ou será pega pelo catch externo.
          resetUpdateButton(); // Garante reset do botão
          return; // Interrompe a função startUpdateProcess
       }
 
-      // --- Prosseguir para ETAPA 2 apenas se ETAPA 1 foi bem-sucedida ---
-      console.log("ETAPA 1 concluída com sucesso. Prosseguindo para ETAPA 2.");
+      // --- Prosseguir para ETAPA 4 (antiga ETAPA 2) apenas se ETAPA 3 foi bem-sucedida ---
+      console.log("ETAPA 3 concluída com sucesso. Prosseguindo para ETAPA 4.");
 
-      // Re-calcular totais da Etapa 1 com base no último resultado bem-sucedido
+      // Re-calcular totais da Etapa 3 com base no último resultado bem-sucedido
       const finalTotaisRename = finalRenameResult.totais || {};
       const finalTotalRenomeados = (finalTotaisRename.qpe_sem_letra || 0) +
                                   (finalTotaisRename.qpe_com_letra || 0) +
@@ -541,35 +582,37 @@ export default function AutomacaoFinancas() {
                                   (finalTotaisRename.telecom || 0);
       const finalTotalMovidosInternamente = (finalTotaisRename.movidos || 0);
 
-      setUpdateStatusMessage(`ETAPA 1 concluída: ${finalTotalRenomeados} renomeados, ${finalTotalMovidosInternamente} movidos. Iniciando ETAPA 2...`);
+      setUpdateStatusMessage(`ETAPA 3 concluída: ${finalTotalRenomeados} renomeados, ${finalTotalMovidosInternamente} movidos. Iniciando ETAPA 4...`);
 
 
-      // ETAPA 2: Copiar arquivos das pastas intermediárias para o repositório final
-      console.log("ETAPA 2: Iniciando processo copy-to-repository");
-      setUpdateStatusMessage("ETAPA 2: Copiando arquivos para repositório...");
+      // ETAPA 4: Copiar arquivos das pastas intermediárias para o repositório final (antiga ETAPA 2)
+      console.log("ETAPA 4: Iniciando processo copy-to-repository");
+      setUpdateStatusMessage("ETAPA 4: Copiando arquivos para repositório...");
       const copyResponse = await fetch(`${API_URL}/backend/files-repository/copy-to-repository`, {
         method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }
       });
 
       if (!copyResponse.ok) {
-        throw new Error(`Erro HTTP na ETAPA 2 (Copy to Repository): ${copyResponse.status}`);
+        throw new Error(`Erro HTTP na ETAPA 4 (Copy to Repository): ${copyResponse.status}`);
       }
       const copyResult = await copyResponse.json();
       if (!copyResult.success) {
         if (copyResult.cancelled) {
-          setUpdateStatusMessage("Processo cancelado durante ETAPA 2");
+          setUpdateStatusMessage("Processo cancelado durante ETAPA 4");
           resetUpdateButton();
           return;
         }
-        throw new Error(`Erro na ETAPA 2 (Copy to Repository): ${copyResult.message || 'Falha desconhecida'}`);
+        throw new Error(`Erro na ETAPA 4 (Copy to Repository): ${copyResult.message || 'Falha desconhecida'}`);
       }
       const copyDetails = copyResult.details || {};
       const totalCopiadosRepositorio = copyDetails.copied_files || 0;
       const totalFalhasCopia = copyDetails.failed_files || 0;
       const finalMessage = `Processo de atualização finalizado com sucesso!\n\n` +
-                         `ETAPA 1 (Organização Interna): ${finalTotalRenomeados} arquivos renomeados e ${finalTotalMovidosInternamente} movidos para pastas intermediárias.\n` +
-                           `ETAPA 2 (Cópia para Repositório Final): ${totalCopiadosRepositorio} arquivos copiados para o repositório.` +
+                         `ETAPA 1: Verificação de emails Orange concluída.\n` +
+                         `ETAPA 2: Limpeza de pastas intermediárias concluída.\n` +
+                         `ETAPA 3 (Organização Interna): ${finalTotalRenomeados} arquivos renomeados e ${finalTotalMovidosInternamente} movidos para pastas intermediárias.\n` +
+                           `ETAPA 4 (Cópia para Repositório Final): ${totalCopiadosRepositorio} arquivos copiados para o repositório.` +
                            (totalFalhasCopia > 0 ? ` (${totalFalhasCopia} falhas na cópia)` : '');
       setUpdateStatusMessage(`Processo concluído! Etapa 1: ${finalTotalMovidosInternamente} processados, Etapa 2: ${totalCopiadosRepositorio} copiados.`);
       alert(finalMessage);
