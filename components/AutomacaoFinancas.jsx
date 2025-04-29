@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Box, Typography, Button, Paper, Tabs, Tab, Checkbox, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, FormControlLabel, CircularProgress, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, AppBar, Toolbar } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -19,28 +19,28 @@ export default function AutomacaoFinancas() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [fileListKey, setFileListKey] = useState(0);
   
-  // Mapeamento de novos nomes de abas para os nomes antigos (para compatibilidade com backend)
-  const tabNameMapping = {
+  // Envolver a definição do objeto tabNameMapping em useMemo
+  const tabNameMapping = useMemo(() => ({
     'R189': 'R189', // Mantém o mesmo
     'NF_QPE': 'QPE', // Novo -> Antigo
     'NF_SPB': 'SPB', // Novo -> Antigo
     'FATURAS': 'NFSERV', // Novo -> Antigo
     'SRV_CODE': 'MUN_CODE' // Novo -> Antigo
-  };
+  }), []); // Array de dependências vazio significa que será criado apenas uma vez
   
   // Mapeamento inverso (antigo -> novo) para uso em lógicas que precisam converter do backend para UI
-  const reverseTabNameMapping = {
+  const reverseTabNameMapping = useMemo(() => ({
     'R189': 'R189',
     'QPE': 'NF_QPE',
     'SPB': 'NF_SPB',
     'NFSERV': 'FATURAS',
     'MUN_CODE': 'SRV_CODE'
-  };
+  }), []); // Também envolvendo este objeto em useMemo
   
-  // Função auxiliar para obter o nome da aba para o backend
-  const getBackendTabName = (uiTabName) => {
+  // Memoize a função getBackendTabName para evitar recriações a cada renderização
+  const getBackendTabName = useCallback((uiTabName) => {
     return tabNameMapping[uiTabName] || uiTabName;
-  };
+  }, [tabNameMapping]); // tabNameMapping é um objeto constante, então isso não deve mudar
   
   // Função auxiliar para obter o nome da próxima aba na UI
   const getNextUITabName = (currentUITabName) => {
@@ -164,7 +164,7 @@ export default function AutomacaoFinancas() {
     } finally {
         setLoading(false);
     }
-  }, [activeTab]);
+  }, [activeTab, getBackendTabName]); // Agora getBackendTabName é memoizado e não muda a cada renderização
 
   // Função para processar arquivos (COM CAMADA DE COMPATIBILIDADE)
   const handleProcessFiles = async () => {
