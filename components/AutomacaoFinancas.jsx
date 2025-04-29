@@ -1161,42 +1161,6 @@ export default function AutomacaoFinancas() {
                            </Typography>
                          )}
                       </Box>
-                      
-                      {/* Botão Get Email Orange */}
-                      <Box sx={{ position: 'relative', mt: 1 }}>
-                        <Box 
-                          sx={{ 
-                            display: 'flex',
-                            alignItems: 'center',
-                            py: 1.2,
-                            px: 2,
-                            cursor: 'pointer',
-                            transition: 'background-color 0.2s',
-                            '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.1)' },
-                            borderLeft: '2px solid rgba(255, 255, 255, 0.3)',
-                            bgcolor: processingType === 'email' ? 'rgba(0, 87, 157, 0.3)' : 'transparent',
-                          }}
-                          onClick={!loading ? handleOrangeEmailCheck : null}
-                        >
-                          <Box sx={{ 
-                            width: 6, 
-                            height: 6, 
-                            borderRadius: '50%', 
-                            mr: 1.5, 
-                            bgcolor: 'rgba(255, 255, 255, 0.7)' 
-                          }} />
-                          <Typography sx={{ fontSize: '0.9rem' }}>
-                            Get Email Orange
-                          </Typography>
-                          {loading && processingType === 'email' && (
-                            <CircularProgress size={14} sx={{ ml: 1, color: 'white' }} />
-                          )}
-                        </Box>
-                      </Box>
-                      
-                      {/* REMOVER O BOTÃO MOVER ARQUIVOS (já removido) */}
-                      
-                      {/* Você pode adicionar outros submenus de Orange aqui */}
                     </Box>
                   )}
                 </Box>
